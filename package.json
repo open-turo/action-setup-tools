@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist/main --source-map --license licenses.txt",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=60000",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=1200000",
     "all": "npm run lint && npm run prepare && npm run test"
   },
   "repository": {
