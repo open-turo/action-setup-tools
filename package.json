@@ -1,0 +1,45 @@
+{
+  "name": "action-git-auth",
+  "version": "1.0.0",
+  "description": "GitHub Action to configure git authentication through gitconfig insteadOf rules",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "prepare": "ncc build index.js -o dist/main --source-map --license licenses.txt",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=60000",
+    "all": "npm run lint && npm run prepare && npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-turo/action-git-auth.git"
+  },
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "JavaScript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/open-turo/action-git-auth/issues"
+  },
+  "homepage": "https://github.com/open-turo/action-git-auth/#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.5",
+    "@actions/exec": "^1.1.0",
+    "@actions/github": "^5.0.0",
+    "@actions/io": "^1.1.1",
+    "find-versions": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.17.0",
+    "@vercel/ncc": "^0.33.3",
+    "eslint": "^8.9.0",
+    "eslint-config-prettier": "^8.3.0",
+    "jest": "^27.5.1"
+  },
+  "jest": {
+    "transform": {}
+  }
+}

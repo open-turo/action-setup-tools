@@ -1,0 +1,11 @@
+self-hosted-runner:
+  # Labels of self-hosted runner in array of string
+  labels:
+    [
+      'turo',
+      'general-ubuntu',
+      'general-ubuntu-v1',
+      'general-ubuntu-v2',
+      'linux',
+      'amd64',
+    ]

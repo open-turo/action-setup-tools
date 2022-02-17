@@ -1,0 +1,18 @@
+name: action-setup-tools
+description: Intialize self-hosted tool versions
+outputs:
+  go:
+    description: The Go version used
+  node:
+    description: The Node.js version used
+  java:
+    description: The Java version used
+  kotlin:
+    description: The Kotlin version used
+  python:
+    description: The Python version used
+  terraform:
+    description: The Terraform version used
+runs:
+  using: 'node16'
+  main: 'dist/main/index.js'
