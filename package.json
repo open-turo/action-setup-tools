@@ -1,7 +1,7 @@
 {
   "name": "action-setup-tools",
   "version": "1.0.0",
-  "description": "GitHub Action to configure git authentication through gitconfig insteadOf rules",
+  "description": "GitHub Action to provision supported tools for workflow steps in self-hosted runners",
   "main": "index.js",
   "type": "module",
   "scripts": {
