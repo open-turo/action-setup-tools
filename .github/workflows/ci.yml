@@ -10,45 +10,44 @@ jobs:
   # Runs pre-commit linters
   lint:
     name: Lint
-    runs-on: [self-hosted, general-ubuntu]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - run: npm ci
-      - uses: open-turo/action-pre-commit@v1
-
-  # Runs unit tests
-  test:
-    name: Test
-    runs-on: [self-hosted, general-ubuntu]
-    steps:
-      - uses: actions/checkout@v2
-      - run: npm ci
-      - run: npm test
-
-  # Build and run the action from this repo to test full functionality
-  action:
-    name: Action test
-    runs-on: [self-hosted, general-ubuntu]
-    steps:
-      - uses: actions/checkout@v2
-      - run: npm ci
-      - run: npm run prepare
-      - uses: ./versions
-        with:
-          go: 1.17.6
-          java: 17.0.2-tem
-          node: 16.13.2
-          python: 3.10.2
-          terraform: 1.1.5
-      - run: go version || true
-      - run: java -version || true
-      - run: node --version || true
-      - run: python --version || true
-      - run: terraform --version || true
-      - run: go version | grep "1.17.6"
-      - run: java -version 2>&1 | grep "17.0.2"
-      - run: node --version | grep "16.13.2"
-      - run: python --version || grep "3.10.2"
-      - run: terraform --version | grep "1.1.5"
+      - uses: open-turo/actions-gha/lint@v1
+#
+#  # Runs unit tests
+#  test:
+#    name: Test
+#    runs-on: [self-hosted, general-ubuntu]
+#    steps:
+#      - uses: actions/checkout@v2
+#      - run: npm ci
+#      - run: npm test
+#
+#  # Build and run the action from this repo to test full functionality
+#  action:
+#    name: Action test
+#    runs-on: [self-hosted, general-ubuntu]
+#    steps:
+#      - uses: actions/checkout@v2
+#      - run: npm ci
+#      - run: npm run prepare
+#      - uses: ./versions
+#        with:
+#          go: 1.17.6
+#          java: 17.0.2-tem
+#          node: 16.13.2
+#          python: 3.10.2
+#          terraform: 1.1.5
+#      - run: go version || true
+#      - run: java -version || true
+#      - run: node --version || true
+#      - run: python --version || true
+#      - run: terraform --version || true
+#      - run: go version | grep "1.17.6"
+#      - run: java -version 2>&1 | grep "17.0.2"
+#      - run: node --version | grep "16.13.2"
+#      - run: python --version || grep "3.10.2"
+#      - run: terraform --version | grep "1.1.5"
