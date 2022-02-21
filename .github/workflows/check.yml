@@ -20,20 +20,10 @@ on:
 jobs:
   build:
     name: Build is up to date
-    runs-on: [self-hosted, general-ubuntu]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: npm ci
-      - run: npm run prepare
-      - name: Compare the commited and actual dist/ builds
-        run: |
-          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
-            echo "Detected uncommitted changes after build.  See status below:"
-            git diff
-            echo ""
-            echo "please run:"
-            echo "    npm run prepare"
-            echo ""
-            echo "and commit the changes"
-            exit 1
-          fi
+      - name: Dist check
+        uses: open-turo/actions-gha/node-check-dist@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
