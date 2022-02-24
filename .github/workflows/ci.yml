@@ -10,19 +10,13 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - uses: open-turo/actions-gha/lint@v1
-#
-#  # Runs unit tests
 #  test:
 #    name: Test
-#    runs-on: [self-hosted, general-ubuntu]
+#    runs-on: ubuntu-latest
 #    steps:
-#      - uses: actions/checkout@v2
-#      - run: npm ci
-#      - run: npm test
+#      - uses: open-turo/actions-gha/test@v1
+
 #
 #  # Build and run the action from this repo to test full functionality
 #  action:
