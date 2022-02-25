@@ -1,5 +1,5 @@
 {
-  "name": "action-setup-tools",
+  "name": "action-setup-tools-2",
   "version": "1.0.0",
   "description": "GitHub Action to configure git authentication through gitconfig insteadOf rules",
   "main": "index.js",
