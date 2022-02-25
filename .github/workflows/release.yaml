@@ -10,17 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: open-turo/actions-gha/lint@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  #  test:
-  #    name: Test
-  #    runs-on: ubuntu-latest
-  #    steps:
-  #      - uses: open-turo/actions-gha/test@v1
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/install-tools
+      - uses: open-turo/actions-gha/test@v1
+        with:
+          checkout-repo: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build and run the action from this repo to test full functionality
+  action:
+    name: Action test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/action-test
 
   release:
     needs:
       - lint
-    #      - test
+      - test
+      - action
     name: Release
     runs-on: ubuntu-latest
     env:
