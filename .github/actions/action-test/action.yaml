@@ -1,0 +1,37 @@
+name: Action Test
+description: Tests the action directly
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/install-tools
+    - shell: bash
+      run: npm ci
+    - shell: bash
+      run: npm run prepare
+    - uses: ./versions
+      with:
+        go: 1.17.6
+        java: 17.0.2-tem
+        node: 16.13.2
+        python: 3.10.2
+        terraform: 1.1.5
+    - shell: bash
+      run: go version || true
+    - shell: bash
+      run: java -version || true
+    - shell: bash
+      run: node --version || true
+    - shell: bash
+      run: python --version || true
+    - shell: bash
+      run: terraform --version || true
+    - shell: bash
+      run: go version | grep "1.17.6"
+    - shell: bash
+      run: java -version 2>&1 | grep "17.0.2"
+    - shell: bash
+      run: node --version | grep "16.13.2"
+    - shell: bash
+      run: python --version || grep "3.10.2"
+    - shell: bash
+      run: terraform --version | grep "1.1.5"
