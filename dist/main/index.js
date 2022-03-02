@@ -2990,26 +2990,26 @@ function findVersions(stringWithVersions, {loose = false} = {}) {
 
 // Superclass for all supported tools
 class Tool {
-    static registry = {};
+    static registry = {}
 
     constructor(name) {
-        this.name = name;
-        this.env = {};
+        this.name = name
+        this.env = {}
 
         // Create logger wrapper functions for this tool
-        const loggers = ['debug', 'info', 'warning', 'notice', 'error'];
+        const loggers = ["debug", "info", "warning", "notice", "error"]
         loggers.forEach((logger) => {
-            this[logger] = (...msg) => this.log(logger, msg);
-        });
+            this[logger] = (...msg) => this.log(logger, msg)
+        })
     }
 
     // Log a message using method from core and msg prepended with the name
     log(method, msg) {
         if (Array.isArray(msg)) {
-            if (this.name) msg = `[${this.name}]\t${msg.join(' ')}`;
-            else msg = msg.join(' ');
+            if (this.name) msg = `[${this.name}]\t${msg.join(" ")}`
+            else msg = msg.join(" ")
         }
-        core[method](msg);
+        core[method](msg)
     }
 
     // determines the desired version of the tool (e.g. terraform) that is being requested.
@@ -3020,22 +3020,22 @@ class Tool {
     // the version from the repositories tool version file.
     getVersion(actionDesiredVersion, repoToolVersionFilename) {
         // Check if we have any version passed in to the action (can be null/empty string)
-        if (actionDesiredVersion) return [actionDesiredVersion, true];
+        if (actionDesiredVersion) return [actionDesiredVersion, true]
 
         if (external_fs_.existsSync(repoToolVersionFilename)) {
             let textRead = external_fs_.readFileSync(repoToolVersionFilename, {
-                encoding: 'utf8',
-                flag: 'r',
-            });
-            const readToolVersionNumber = textRead ? textRead.trim() : textRead;
+                encoding: "utf8",
+                flag: "r",
+            })
+            const readToolVersionNumber = textRead ? textRead.trim() : textRead
             this.debug(
-                `Found version ${readToolVersionNumber} in ${repoToolVersionFilename}`
-            );
+                `Found version ${readToolVersionNumber} in ${repoToolVersionFilename}`,
+            )
             if (readToolVersionNumber && readToolVersionNumber.length > 0)
-                return [readToolVersionNumber, false];
+                return [readToolVersionNumber, false]
         }
         // No version has been specified
-        return [null, null];
+        return [null, null]
     }
 
     // version runs `cmd` with environment `env` and resolves the promise with any
@@ -3048,165 +3048,165 @@ class Tool {
                 if (proc.stdout) {
                     let stdoutVersions = findVersions(proc.stdout, {
                         loose: useLooseVersionFinding,
-                    });
-                    if (stdoutVersions) return stdoutVersions;
+                    })
+                    if (stdoutVersions) return stdoutVersions
                 }
                 if (proc.stderr) {
-                    return findVersions(proc.stderr);
+                    return findVersions(proc.stderr)
                 }
             })
             .then((versions) => {
-                this.info(`${cmd}: ${versions[0]}`);
-                return versions[0];
+                this.info(`${cmd}: ${versions[0]}`)
+                return versions[0]
             })
-            .catch(this.logAndExit(`failed to get version: ${cmd}`));
+            .catch(this.logAndExit(`failed to get version: ${cmd}`))
     }
 
     // validateVersion returns the found current version from a subprocess which
     // is compared against the expected value given
     async validateVersion(command, expected, mutator = null) {
-        mutator = mutator || ((v) => v);
-        let version = await this.version(command);
-        version = mutator(version);
+        mutator = mutator || ((v) => v)
+        let version = await this.version(command)
+        version = mutator(version)
         if (expected != version) {
-            this.logAndExit(`version mismatch ${expected} != ${version}`)();
+            this.logAndExit(`version mismatch ${expected} != ${version}`)()
         }
-        return version;
+        return version
     }
 
     // subprocess invokes `cmd` with environment `env` and resolves the promise with
     // an object containing the output and any error that was caught
     async subprocess(cmd, env, opts = { silent: false }) {
         let proc = {
-            stdout: '',
-            stderr: '',
+            stdout: "",
+            stderr: "",
             err: null,
             exitCode: 0,
-        };
+        }
 
         // Always merge the passed environment on top of the process environment so
         // we don't lose execution context
-        env = env || this.env || {};
-        opts.env = { ...external_process_namespaceObject.env, ...env };
+        env = env || this.env || {}
+        opts.env = { ...external_process_namespaceObject.env, ...env }
 
         // This lets us inspect the process output, otherwise an error is thrown and
         // it is lost
         opts.ignoreReturnCode =
-            opts.ignoreReturnCode != undefined ? opts.ignoreReturnCode : true;
+            opts.ignoreReturnCode != undefined ? opts.ignoreReturnCode : true
 
         return new Promise((resolve, reject) => {
-            (0,exec.getExecOutput)(cmd, [], opts)
+            ;(0,exec.getExecOutput)(cmd, [], opts)
                 .then((result) => {
                     if (result.exitCode > 0) {
                         let err = new Error(
-                            'subprocess exited with non-zero code'
-                        );
-                        err.exitCode = result.exitCode;
-                        err.stdout = result.stdout;
-                        err.stderr = result.stderr;
-                        reject(err);
-                        return;
+                            "subprocess exited with non-zero code",
+                        )
+                        err.exitCode = result.exitCode
+                        err.stdout = result.stdout
+                        err.stderr = result.stderr
+                        reject(err)
+                        return
                     }
 
-                    proc.exitCode = result.exitCode;
-                    proc.stdout = result.stdout;
-                    proc.stderr = result.stderr;
-                    resolve(proc);
+                    proc.exitCode = result.exitCode
+                    proc.stdout = result.stdout
+                    proc.stderr = result.stderr
+                    resolve(proc)
                 })
                 .catch((err) => {
-                    reject(err);
-                });
-        });
+                    reject(err)
+                })
+        })
     }
 
     // logAndExit logs the error message from a subprocess and sets the failure
     // message for the Action and exits the process entirely
     logAndExit(msg) {
         return (err) => {
-            if (err) this.error(err);
-            core.setFailed(msg);
-            external_process_namespaceObject.exit(1);
-        };
+            if (err) this.error(err)
+            core.setFailed(msg)
+            external_process_namespaceObject.exit(1)
+        }
     }
 
     // findRoot tries to find the root directory of the tool.
     async findRoot(tool) {
         // Env name are like TFENV_ROOT or NODENV_ROOT
-        const toolEnv = `${tool.toUpperCase()}_ROOT`;
-        let toolPath = external_process_namespaceObject.env[toolEnv];
+        const toolEnv = `${tool.toUpperCase()}_ROOT`
+        let toolPath = external_process_namespaceObject.env[toolEnv]
         // Return whatever's currently set if we have it
         if (toolPath) {
-            this.info(`${toolEnv} set from environment: ${toolPath}`);
+            this.info(`${toolEnv} set from environment: ${toolPath}`)
             if (!external_fs_.existsSync(toolPath)) {
                 throw new Error(
-                    `${toolEnv} misconfigured: ${toolPath} does not exist`
-                );
+                    `${toolEnv} misconfigured: ${toolPath} does not exist`,
+                )
             }
-            return toolPath;
+            return toolPath
         }
 
         // Default path is ~/.<tool>/ since that's what our CI uses
-        const defaultPath = external_path_.join(external_os_.homedir(), `.${tool}`);
+        const defaultPath = external_path_.join(external_os_.homedir(), `.${tool}`)
 
         // Use a subshell get the command path or function name and
         // differentiate in a sane way
-        const check = `bash -c "command -v ${tool}"`;
+        const check = `bash -c "command -v ${tool}"`
         const proc = await this.subprocess(check, {}, { silent: true }).catch(
             (err) => {
-                this.error(err);
-                return defaultPath;
-            }
-        );
-        toolPath = proc.stdout.trim();
+                this.error(err)
+                return defaultPath
+            },
+        )
+        toolPath = proc.stdout.trim()
         if (toolPath == tool) {
             // This means it's a function from the subshell profile
             // somewhere, so we just have to use the default
-            this.debug('Found tool path as function name');
-            return defaultPath;
+            this.debug("Found tool path as function name")
+            return defaultPath
         }
         if (!external_fs_.existsSync(toolPath)) {
             // This is a weird error case
-            this.error('tool path does not exit');
-            return defaultPath;
+            this.error("tool path does not exit")
+            return defaultPath
         }
 
         // Walk down symbolic links until we find the real path
         while (toolPath) {
             const stat = await promises_namespaceObject.lstat(toolPath).catch((err) => {
-                this.error(err);
-                return defaultPath;
-            });
-            if (!stat.isSymbolicLink()) break;
+                this.error(err)
+                return defaultPath
+            })
+            if (!stat.isSymbolicLink()) break
 
             let link = await promises_namespaceObject.readlink(toolPath).catch((err) => {
-                this.error(err);
-                return defaultPath;
-            });
+                this.error(err)
+                return defaultPath
+            })
             // Make sure we can resolve relative symlinks which Homebrew uses
-            toolPath = external_path_.resolve(external_path_.dirname(toolPath), link);
+            toolPath = external_path_.resolve(external_path_.dirname(toolPath), link)
         }
 
-        const re = new RegExp(`/(bin|libexec)/${tool}$`);
-        toolPath = toolPath.replace(re, '');
-        if (external_fs_.existsSync(toolPath)) return toolPath;
+        const re = new RegExp(`/(bin|libexec)/${tool}$`)
+        toolPath = toolPath.replace(re, "")
+        if (external_fs_.existsSync(toolPath)) return toolPath
 
-        let err = `${toolEnv} misconfigured: ${toolPath} does not exist`;
-        this.error(err);
-        throw new Error(err);
+        let err = `${toolEnv} misconfigured: ${toolPath} does not exist`
+        this.error(err)
+        throw new Error(err)
     }
 
     // register adds name : subclass to the tool registry
     static register() {
-        this.registry[this.tool] = this;
+        this.registry[this.tool] = this
     }
 
     // all returns an array of objects containing the tool name and the bound
     // setup function of a tool instance
     static all() {
         return Object.keys(this.registry).map((k) => {
-            let tool = new this.registry[k]();
-            return { name: k, setup: tool.setup.bind(tool) };
-        });
+            let tool = new this.registry[k]()
+            return { name: k, setup: tool.setup.bind(tool) }
+        })
     }
 }
 
@@ -3219,9 +3219,9 @@ class Tool {
 
 
 class Golang extends Tool {
-    static tool = 'go';
+    static tool = "go"
     constructor() {
-        super(Golang.tool);
+        super(Golang.tool)
     }
 
     // desiredVersion : The desired version of golang, e.g. "1.16.4"
@@ -3230,81 +3230,81 @@ class Golang extends Tool {
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
-            '.go-version'
-        );
+            ".go-version",
+        )
         if (!checkVersion) {
             // Neither version was given nor did we find the auto configuration, so
             // we don't even attempt to configure golang.
-            this.debug('skipping golang');
-            return;
+            this.debug("skipping golang")
+            return
         }
 
         // Construct the execution environment for goenv
-        this.env = await this.makeEnv();
+        this.env = await this.makeEnv()
 
         // Check if goenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
         // core.debug("Attempting to obtain current golang version via goenv")
-        await this.version('goenv --version');
+        await this.version("goenv --version")
 
-        if (!io.which('go')) {
-            this.logAndExit('GOENV_ROOT misconfigured')();
+        if (!io.which("go")) {
+            this.logAndExit("GOENV_ROOT misconfigured")()
         }
 
         // If we're overriding the version, make sure we set it in the environment
         // now, and downstream so tfenv knows it
         if (isVersionOverridden) {
-            this.env.GOENV_VERSION = checkVersion;
+            this.env.GOENV_VERSION = checkVersion
         }
 
         // using -s option to skip the install and become a no-op if the
         // version requested to be installed is already installed according to goenv.
-        let installCommand = `goenv install -s`;
+        let installCommand = `goenv install -s`
         // goenv install does not pick up the environment variable GOENV_VERSION
         // unlike tfenv, so we specify it here as an argument explicitly, if it's set
-        if (isVersionOverridden) installCommand += ` ${checkVersion}`;
+        if (isVersionOverridden) installCommand += ` ${checkVersion}`
 
         await this.subprocess(installCommand).catch(
-            this.logAndExit(`failed to install golang version ${checkVersion}`)
-        );
+            this.logAndExit(`failed to install golang version ${checkVersion}`),
+        )
 
         // Sanity check that the go command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion('go version', checkVersion);
+        await this.validateVersion("go version", checkVersion)
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable('GOENV_VERSION', checkVersion);
+            core.exportVariable("GOENV_VERSION", checkVersion)
         }
 
         // If we got this far, we have successfully configured golang.
-        core.setOutput(Golang.tool, checkVersion);
-        this.info('golang success!');
+        core.setOutput(Golang.tool, checkVersion)
+        this.info("golang success!")
     }
 
     async makeEnv() {
-        let env = {};
-        const goenvRoot = await this.findRoot('goenv');
-        env.GOENV_ROOT = goenvRoot;
+        let env = {}
+        const goenvRoot = await this.findRoot("goenv")
+        env.GOENV_ROOT = goenvRoot
 
         // goenv/shims must be be placed on the path so that the go command itself
         // can be located at runtime.
         // Add it to our path explicitly since the goenv command is not likely
         // on the default PATH
-        const goenvBin = external_path_.join(goenvRoot, 'bin');
-        const goenvShims = external_path_.join(goenvRoot, 'shims');
-        this.debug(`Adding ${goenvBin} and ${goenvShims} to PATH`);
-        core.exportVariable('GOENV_ROOT', env.GOENV_ROOT);
-        core.exportVariable('GOENV_SHELL', 'bash');
-        core.addPath(goenvBin);
-        core.addPath(goenvShims);
+        const goenvBin = external_path_.join(goenvRoot, "bin")
+        const goenvShims = external_path_.join(goenvRoot, "shims")
+        this.debug(`Adding ${goenvBin} and ${goenvShims} to PATH`)
+        core.exportVariable("GOENV_ROOT", env.GOENV_ROOT)
+        core.exportVariable("GOENV_SHELL", "bash")
+        core.addPath(goenvBin)
+        core.addPath(goenvShims)
 
-        return env;
+        return env
     }
 }
 
 // Register the subclass in our tool list
-Golang.register();
+Golang.register()
 
 ;// CONCATENATED MODULE: ./java.js
 
@@ -3317,9 +3317,9 @@ Golang.register();
 
 
 class Java extends Tool {
-    static tool = 'java';
+    static tool = "java"
     constructor() {
-        super(Java.tool);
+        super(Java.tool)
     }
 
     // determines the desired version of java that is being requested. if the desired version
@@ -3329,51 +3329,60 @@ class Java extends Tool {
     // the version from the .sdkmanrc file.
     getJavaVersion(actionDesiredVersion) {
         // Check if we have any version passed in to the action (can be null/empty string)
-        if (actionDesiredVersion) return [actionDesiredVersion, true];
+        if (actionDesiredVersion) return [actionDesiredVersion, true]
 
-        const sdkmanrcFile = '.sdkmanrc';
-        if (external_fs_.existsSync(sdkmanrcFile)) {
-            const textRead = external_fs_.readFileSync(sdkmanrcFile, {
-                encoding: 'utf8',
-                flag: 'r',
-            });
-            const readJavaVersion = textRead
-                .trim()
-                .split('\n')
-                .reduce((obj, line) => {
-                    const lineParts = line.split('=');
-                    const key = lineParts[0];
-                    if (key == 'java') {
-                        return lineParts[1];
-                    }
-                });
-            this.debug(
-                `Found java version ${readJavaVersion} in ${sdkmanrcFile}`
-            );
-            if (readJavaVersion && readJavaVersion.length > 0)
-                return [readJavaVersion, false];
+        const readJavaVersion = this.parseSdkmanrc()
+        if (readJavaVersion) {
+            this.debug(`Found java version ${readJavaVersion} in .sdkmanrc`)
+            return [readJavaVersion, false]
         }
         // No version has been specified
-        return [null, null];
+        return [null, null]
+    }
+
+    parseSdkmanrc(filename) {
+        filename = filename || ".sdkmanrc"
+        filename = external_path_.resolve(external_path_.join(external_process_namespaceObject.cwd(), filename))
+        // No file? We're done
+        if (!external_fs_.existsSync(filename)) {
+            this.debug(`No .sdkmanrc file found: ${filename}`)
+            return
+        }
+
+        // Read our file and split it linewise
+        let data = external_fs_.readFileSync(filename, { encoding: "utf8", flag: "r" })
+        if (!data) return
+        data = data.split("\n")
+
+        // Iterate over each line and match against the regex
+        const find = new RegExp("^([^#=]+)=([^# ]+)$")
+        let found = {}
+        for (let line of data) {
+            const match = find.exec(line)
+            if (!match) continue
+            found[match[1]] = match[2]
+        }
+        this.debug(`Found .sdkman entries ${JSON.stringify(found)}`)
+        return found["java"]
     }
 
     // stripJavaVersionSuffix returns the normalized version without suffix strings
     stripJavaVersionSuffix(versionIdentifier, suffixIdentifier) {
-        const suffixStartIndex = versionIdentifier.indexOf(suffixIdentifier);
+        const suffixStartIndex = versionIdentifier.indexOf(suffixIdentifier)
         return suffixStartIndex >= 0
             ? versionIdentifier.substring(0, suffixStartIndex)
-            : versionIdentifier;
+            : versionIdentifier
     }
 
     // Sets the default java version to use via sdkman to desiredVersion
     async setDefaultVersion(desiredVersion) {
-        const defaultVersionCommand = `sdk default java ${desiredVersion}`;
-        this.debug(`Using default version command '${defaultVersionCommand}`);
+        const defaultVersionCommand = `sdk default java ${desiredVersion}`
+        this.debug(`Using default version command '${defaultVersionCommand}`)
         return this.subprocess(defaultVersionCommand).catch(
             this.logAndExit(
-                `failed to set default java version ${desiredVersion}`
-            )
-        );
+                `failed to set default java version ${desiredVersion}`,
+            ),
+        )
     }
 
     // desiredVersion : The identifier for the specific desired version of java as
@@ -3382,21 +3391,21 @@ class Java extends Tool {
     // condition otherwise.
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] =
-            this.getJavaVersion(desiredVersion);
+            this.getJavaVersion(desiredVersion)
         if (!checkVersion) {
             // Neither version was given nor did we find the auto configuration, so
             // we don't even attempt to configure java.
-            this.debug('skipping java');
-            return;
+            this.debug("skipping java")
+            return
         }
 
         // Construct the execution environment for sdkman for java
-        this.env = this.makeEnv();
+        this.env = this.makeEnv()
 
         // If we're overriding the version, make sure we set it in the environment
         // now, and downstream so sdkman knows it
         if (isVersionOverridden) {
-            this.env.JAVA_VERSION = checkVersion;
+            this.env.JAVA_VERSION = checkVersion
         }
 
         // If sdkman is requested to install the same version of java more than once,
@@ -3404,59 +3413,59 @@ class Java extends Tool {
         // form "java 11.0.2-open is already installed". sdk install does not pick up the
         // environment variable JAVA_VERSION unlike tfenv, so we specify it here as an
         // argument explicitly, if it's set
-        const installCommand = `sdk install java ${checkVersion}`;
+        const installCommand = `sdk install java ${checkVersion}`
         await this.subprocess(installCommand).catch(
-            this.logAndExit(`failed to install java version ${checkVersion}`)
-        );
+            this.logAndExit(`failed to install java version ${checkVersion}`),
+        )
 
         // Now that the appropriate version is available, we must declare that that is
         // the version we wish to be using.
-        await this.setDefaultVersion(checkVersion);
+        await this.setDefaultVersion(checkVersion)
 
         // Augment path so that the current version of java according to sdkman will be
         // the version found.
-        core.addPath(`${this.env.SDKMAN_DIR}/candidates/java/current/bin`);
+        core.addPath(`${this.env.SDKMAN_DIR}/candidates/java/current/bin`)
 
         // Sanity check that the java command works and its reported version matches what we have
         // requested to be in place.
         await this.validateVersion(
-            'java -version',
-            this.stripJavaVersionSuffix(checkVersion, '-'),
-            (version) => this.stripJavaVersionSuffix(version, '+')
-        );
+            "java -version",
+            this.stripJavaVersionSuffix(checkVersion, "-"),
+            (version) => this.stripJavaVersionSuffix(version, "+"),
+        )
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable('JAVA_VERSION', checkVersion);
+            core.exportVariable("JAVA_VERSION", checkVersion)
         }
 
         // If we got this far, we have successfully configured java.
-        core.setOutput(Java.tool, checkVersion);
-        this.info('java success!');
+        core.setOutput(Java.tool, checkVersion)
+        this.info("java success!")
     }
 
     makeEnv() {
-        let env = {};
+        let env = {}
         let sdkmanDir =
-            external_process_namespaceObject.env.SDKMAN_DIR || external_path_.join(external_os_.homedir(), '.sdkman');
+            external_process_namespaceObject.env.SDKMAN_DIR || external_path_.join(external_os_.homedir(), ".sdkman")
 
         // Only set this if it exists
         if (!external_fs_.existsSync(sdkmanDir)) {
-            const err = `SDKMAN_DIR misconfigured: ${sdkmanDir} does not exist`;
-            this.error(err);
-            throw new Error(err);
+            const err = `SDKMAN_DIR misconfigured: ${sdkmanDir} does not exist`
+            this.error(err)
+            throw new Error(err)
         }
 
-        this.info(`Using SDKMAN_DIR ${sdkmanDir}`);
-        env.SDKMAN_DIR = sdkmanDir;
-        core.exportVariable('SDKMAN_DIR', env.SDKMAN_DIR);
+        this.info(`Using SDKMAN_DIR ${sdkmanDir}`)
+        env.SDKMAN_DIR = sdkmanDir
+        core.exportVariable("SDKMAN_DIR", env.SDKMAN_DIR)
 
-        return env;
+        return env
     }
 }
 
 // Register the subclass in our tool list
-Java.register();
+Java.register()
 
 ;// CONCATENATED MODULE: ./node.js
 
@@ -3467,56 +3476,56 @@ Java.register();
 
 
 class Node extends Tool {
-    static tool = 'node';
+    static tool = "node"
     constructor() {
-        super(Node.tool);
+        super(Node.tool)
     }
 
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] =
-            this.getNodeVersion(desiredVersion);
+            this.getNodeVersion(desiredVersion)
         if (!checkVersion) {
             // Neither version was given nor did we find the auto configuration, so
             // we don't even attempt to configure node.
-            this.debug('skipping node');
-            return;
+            this.debug("skipping node")
+            return
         }
 
         // Construct the execution environment for nodenv
-        this.env = await this.makeEnv();
+        this.env = await this.makeEnv()
 
         // Check if nodenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
         // this.debug("Attempting to obtain current node version via nodenv")
-        await this.version('nodenv --version');
+        await this.version("nodenv --version")
 
         // If we're overriding the version, make sure we set it in the environment
         // now, and downstream so tfenv knows it
         if (isVersionOverridden) {
-            this.env.NODENV_VERSION = checkVersion;
+            this.env.NODENV_VERSION = checkVersion
         }
 
         // using -s option to skip the install and become a no-op if the
         // version requested to be installed is already installed according to nodenv.
-        let installCommand = 'nodenv install -s';
+        let installCommand = "nodenv install -s"
         if (isVersionOverridden)
-            installCommand = `${installCommand} ${checkVersion}`;
+            installCommand = `${installCommand} ${checkVersion}`
 
         await this.subprocess(installCommand).catch(
-            this.logAndExit(`failed to install node version ${checkVersion}`)
-        );
+            this.logAndExit(`failed to install node version ${checkVersion}`),
+        )
 
         // Sanity check that the node command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion('node --version', checkVersion);
+        await this.validateVersion("node --version", checkVersion)
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable('NODENV_VERSION', checkVersion);
+            core.exportVariable("NODENV_VERSION", checkVersion)
         }
 
         // If we got this far, we have successfully configured node.
-        this.info('node success!');
+        this.info("node success!")
     }
 
     // getNodeVersion returns a [version, override] pair where version is the SemVer
@@ -3524,49 +3533,49 @@ class Node extends Tool {
     // set for installs.
     getNodeVersion(desiredVersion) {
         // If we're given a version, it's the one we want
-        if (desiredVersion) return [desiredVersion, true];
+        if (desiredVersion) return [desiredVersion, true]
 
         // If .node-version is present, it's the one we want, and it's not
         // considered an override
-        let nodenvVersion;
-        nodenvVersion = this.getVersion(null, '.node-version')[0];
+        let nodenvVersion
+        nodenvVersion = this.getVersion(null, ".node-version")[0]
         if (nodenvVersion) {
-            return [nodenvVersion, false];
+            return [nodenvVersion, false]
         }
 
         // If .nvmrc is present, we fall back to it, but parse away the leading "v"
-        let nvmVersion;
-        nvmVersion = this.getVersion(null, '.nvmrc')[0];
+        let nvmVersion
+        nvmVersion = this.getVersion(null, ".nvmrc")[0]
         if (nvmVersion) {
-            nvmVersion = findVersions(nvmVersion)[0];
-            return [nvmVersion, true];
+            nvmVersion = findVersions(nvmVersion)[0]
+            return [nvmVersion, true]
         }
 
         // Otherwise we have no node
-        return [null, null];
+        return [null, null]
     }
 
     async makeEnv() {
-        let env = {};
-        let nodenvRoot = await this.findRoot('nodenv');
-        env.NODENV_ROOT = nodenvRoot;
+        let env = {}
+        let nodenvRoot = await this.findRoot("nodenv")
+        env.NODENV_ROOT = nodenvRoot
 
         // nodenv/shims must be be placed on the path so that the node command itself
         // can be located at runtime.
         // Add it to our path explicitly since the nodenv command is not likely
         // on the default PATH
-        const nodenvBin = external_path_.join(nodenvRoot, 'bin');
-        const nodenvShims = external_path_.join(nodenvRoot, 'shims');
-        this.debug(`Adding ${nodenvBin} and ${nodenvShims} to PATH`);
-        core.exportVariable('NODENV_ROOT', env.NODENV_ROOT);
-        core.addPath(nodenvBin);
-        core.addPath(nodenvShims);
+        const nodenvBin = external_path_.join(nodenvRoot, "bin")
+        const nodenvShims = external_path_.join(nodenvRoot, "shims")
+        this.debug(`Adding ${nodenvBin} and ${nodenvShims} to PATH`)
+        core.exportVariable("NODENV_ROOT", env.NODENV_ROOT)
+        core.addPath(nodenvBin)
+        core.addPath(nodenvShims)
 
-        return env;
+        return env
     }
 }
 
-Node.register();
+Node.register()
 
 ;// CONCATENATED MODULE: ./python.js
 
@@ -3576,91 +3585,91 @@ Node.register();
 
 
 class Python extends Tool {
-    static tool = 'python';
+    static tool = "python"
     constructor() {
-        super(Python.tool);
+        super(Python.tool)
     }
 
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
-            '.python-version'
-        );
+            ".python-version",
+        )
         if (!checkVersion) {
             // Neither version was given nor did we find the auto configuration, so
             // we don't even attempt to configure terraform.
-            this.debug('skipping python');
-            return;
+            this.debug("skipping python")
+            return
         }
 
         // Construct the execution environment for pyenv
-        this.env = await this.makeEnv();
+        this.env = await this.makeEnv()
 
         // Check if pyenv exists and can be run, and capture the version info while
         // we're at it
-        await this.version('pyenv --version');
+        await this.version("pyenv --version")
 
         // If we're overriding the version, make sure we set it in the environment
         // now, and downstream so pyenv knows it
         if (isVersionOverridden) {
-            this.env.PYENV_VERSION = checkVersion;
+            this.env.PYENV_VERSION = checkVersion
         }
 
         // using -s option to skip the install and become a no-op if the
         // version requested to be installed is already installed according to pyenv.
-        let installCommand = `pyenv install -s`;
+        let installCommand = `pyenv install -s`
         // pyenv install does not pick up the environment variable PYENV_VERSION
         // unlike tfenv, so we specify it here as an argument explicitly, if it's set
-        if (isVersionOverridden) installCommand += ` ${checkVersion}`;
+        if (isVersionOverridden) installCommand += ` ${checkVersion}`
 
         await this.subprocess(installCommand).catch(
-            this.logAndExit(`failed to install python version ${checkVersion}`)
-        );
+            this.logAndExit(`failed to install python version ${checkVersion}`),
+        )
 
         // Sanity check the python command works, and output its version
-        await this.validateVersion('python --version', checkVersion);
+        await this.validateVersion("python --version", checkVersion)
 
         // Sanity check the pip command works, and output its version
-        await this.version('pip --version');
+        await this.version("pip --version")
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable('PYENV_VERSION', checkVersion);
+            core.exportVariable("PYENV_VERSION", checkVersion)
         }
 
         // If we got this far, we have successfully configured python.
-        core.setOutput(Python.tool, checkVersion);
-        this.info('python success!');
+        core.setOutput(Python.tool, checkVersion)
+        this.info("python success!")
     }
 
     async makeEnv() {
-        let env = {};
-        let pyenvRoot = await this.findRoot('pyenv');
-        env.PYENV_ROOT = pyenvRoot;
+        let env = {}
+        let pyenvRoot = await this.findRoot("pyenv")
+        env.PYENV_ROOT = pyenvRoot
 
         // Add it to our path explicitly since the pyenv command is not likely
         // on the default PATH
-        const pyenvBin = external_path_.join(pyenvRoot, 'bin');
-        const pyenvShims = external_path_.join(pyenvRoot, 'shims');
+        const pyenvBin = external_path_.join(pyenvRoot, "bin")
+        const pyenvShims = external_path_.join(pyenvRoot, "shims")
         const pyenvVenvShims = external_path_.join(
             pyenvRoot,
-            'plugins/pyenv-virtualenv/shims'
-        );
+            "plugins/pyenv-virtualenv/shims",
+        )
         this.debug(
-            `Adding ${pyenvBin} and ${pyenvShims} and ${pyenvVenvShims} to PATH`
-        );
-        core.exportVariable('PYENV_ROOT', env.PYENV_ROOT);
-        core.exportVariable('PYENV_VIRTUALENV_INIT', 1);
-        core.addPath(pyenvBin);
-        core.addPath(pyenvShims);
-        core.addPath(pyenvVenvShims);
+            `Adding ${pyenvBin} and ${pyenvShims} and ${pyenvVenvShims} to PATH`,
+        )
+        core.exportVariable("PYENV_ROOT", env.PYENV_ROOT)
+        core.exportVariable("PYENV_VIRTUALENV_INIT", 1)
+        core.addPath(pyenvBin)
+        core.addPath(pyenvShims)
+        core.addPath(pyenvVenvShims)
 
-        return env;
+        return env
     }
 }
 
 // Register the subclass in our tool list
-Python.register();
+Python.register()
 
 ;// CONCATENATED MODULE: ./terraform.js
 
@@ -3670,73 +3679,73 @@ Python.register();
 
 
 class Terraform extends Tool {
-    static tool = 'terraform';
+    static tool = "terraform"
     constructor() {
-        super(Terraform.tool);
+        super(Terraform.tool)
     }
 
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
-            '.terraform-version'
-        );
+            ".terraform-version",
+        )
         if (!checkVersion) {
             // Neither version was given nor did we find the auto configuration, so
             // we don't even attempt to configure terraform.
-            this.debug('skipping terraform');
-            return;
+            this.debug("skipping terraform")
+            return
         }
 
         // Construct the execution environment for tfenv
-        this.env = await this.makeEnv();
+        this.env = await this.makeEnv()
 
         // Check if tfenv exists and can be run, and capture the version info while
         // we're at it
-        await this.version('tfenv --version');
+        await this.version("tfenv --version")
 
         // If we're overriding the version, make sure we set it in the environment
         // now, and downstream so tfenv knows it
         if (isVersionOverridden) {
-            this.env.TFENV_TERRAFORM_VERSION = checkVersion;
+            this.env.TFENV_TERRAFORM_VERSION = checkVersion
         }
 
         // Make sure we have the desired terraform version installed (may be
         // pre-installed on self-hosted runners)
-        await this.subprocess('tfenv install').catch(
-            this.logAndExit('failed to install terraform')
-        );
+        await this.subprocess("tfenv install").catch(
+            this.logAndExit("failed to install terraform"),
+        )
 
         // Sanity check the terraform command works, and output its version
-        await this.validateVersion('terraform --version', checkVersion);
+        await this.validateVersion("terraform --version", checkVersion)
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable('TFENV_TERRAFORM_VERSION', checkVersion);
+            core.exportVariable("TFENV_TERRAFORM_VERSION", checkVersion)
         }
 
         // If we got this far, we have successfully configured terraform.
-        core.setOutput(Terraform.tool, checkVersion);
-        this.info('terraform success!');
+        core.setOutput(Terraform.tool, checkVersion)
+        this.info("terraform success!")
     }
 
     async makeEnv() {
-        let env = {};
-        const tfenvRoot = await this.findRoot('tfenv');
-        env.TFENV_ROOT = tfenvRoot;
+        let env = {}
+        const tfenvRoot = await this.findRoot("tfenv")
+        env.TFENV_ROOT = tfenvRoot
 
         // Add it to our path explicitly since the tfenv command is not likely
         // on the default PATH
-        const tfenvBin = external_path_.join(tfenvRoot, 'bin');
-        this.debug(`Adding ${tfenvBin} to PATH`);
-        core.exportVariable('TFENV_ROOT', env.TFENV_ROOT);
-        core.addPath(tfenvBin);
+        const tfenvBin = external_path_.join(tfenvRoot, "bin")
+        this.debug(`Adding ${tfenvBin} to PATH`)
+        core.exportVariable("TFENV_ROOT", env.TFENV_ROOT)
+        core.addPath(tfenvBin)
 
-        return env;
+        return env
     }
 }
 
 // Register the subclass in our tool list
-Terraform.register();
+Terraform.register()
 
 ;// CONCATENATED MODULE: ./index.js
 
@@ -3754,19 +3763,19 @@ Terraform.register();
 async function run() {
     // Create a list of setup() promises from all the tools
     const setups = Tool.all().map((tool) =>
-        tool.setup(core.getInput(tool.name))
-    );
+        tool.setup(core.getInput(tool.name)),
+    )
     // Wait for all the setup() promises to resolve
-    if (process.env.RUN_ASYNC == 'true') {
-        return Promise.all(setups);
+    if (process.env.RUN_ASYNC == "true") {
+        return Promise.all(setups)
     } else {
         for (let setup of setups) {
-            await setup;
+            await setup
         }
     }
 }
 
-run().catch((error) => core.setFailed(error.message));
+run().catch((error) => core.setFailed(error.message))
 
 })();
 
