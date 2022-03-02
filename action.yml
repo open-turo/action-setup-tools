@@ -14,5 +14,5 @@ outputs:
   terraform:
     description: The Terraform version used
 runs:
-  using: 'node16'
-  main: 'dist/main/index.js'
+  using: "node16"
+  main: "dist/main/index.js"

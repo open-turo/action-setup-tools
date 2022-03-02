@@ -32,10 +32,10 @@ name: CI
 on:
     push:
         branches:
-            - 'main'
+            - "main"
     pull_request:
         branches:
-            - 'main'
+            - "main"
 jobs:
     my-job:
         runs-on: ubuntu-latest
@@ -102,10 +102,10 @@ name: CI
 on:
     push:
         branches:
-            - 'main'
+            - "main"
     pull_request:
         branches:
-            - 'main'
+            - "main"
 jobs:
     my-job:
         runs-on: ubuntu-latest
