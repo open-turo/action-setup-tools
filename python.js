@@ -15,12 +15,7 @@ export default class Python extends Tool {
             desiredVersion,
             ".python-version",
         )
-        if (!checkVersion) {
-            // Neither version was given nor did we find the auto configuration, so
-            // we don't even attempt to configure terraform.
-            this.debug("skipping python")
-            return
-        }
+        if (!this.haveVersion(checkVersion)) return
 
         // Construct the execution environment for pyenv
         this.env = await this.makeEnv()
@@ -29,10 +24,9 @@ export default class Python extends Tool {
         // we're at it
         await this.version("pyenv --version")
 
-        // If we're overriding the version, make sure we set it in the environment
-        // now, and downstream so pyenv knows it
+        // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            this.env.PYENV_VERSION = checkVersion
+            core.exportVariable("PYENV_VERSION", checkVersion)
         }
 
         // using -s option to skip the install and become a no-op if the
@@ -51,11 +45,6 @@ export default class Python extends Tool {
 
         // Sanity check the pip command works, and output its version
         await this.version("pip --version")
-
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            core.exportVariable("PYENV_VERSION", checkVersion)
-        }
 
         // If we got this far, we have successfully configured python.
         core.setOutput(Python.tool, checkVersion)

@@ -15,12 +15,7 @@ export default class Terraform extends Tool {
             desiredVersion,
             ".terraform-version",
         )
-        if (!checkVersion) {
-            // Neither version was given nor did we find the auto configuration, so
-            // we don't even attempt to configure terraform.
-            this.debug("skipping terraform")
-            return
-        }
+        if (!this.haveVersion(checkVersion)) return
 
         // Construct the execution environment for tfenv
         this.env = await this.makeEnv()
@@ -29,25 +24,19 @@ export default class Terraform extends Tool {
         // we're at it
         await this.version("tfenv --version")
 
-        // If we're overriding the version, make sure we set it in the environment
-        // now, and downstream so tfenv knows it
+        // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            this.env.TFENV_TERRAFORM_VERSION = checkVersion
+            core.exportVariable("TFENV_TERRAFORM_VERSION", checkVersion)
         }
 
         // Make sure we have the desired terraform version installed (may be
         // pre-installed on self-hosted runners)
         await this.subprocess("tfenv install").catch(
-            this.logAndExit("failed to install terraform"),
+            this.logAndExit("install failed"),
         )
 
         // Sanity check the terraform command works, and output its version
         await this.validateVersion("terraform --version", checkVersion)
-
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            core.exportVariable("TFENV_TERRAFORM_VERSION", checkVersion)
-        }
 
         // If we got this far, we have successfully configured terraform.
         core.setOutput(Terraform.tool, checkVersion)

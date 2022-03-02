@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist/main --source-map --license licenses.txt",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=1200000",
+    "test:debug": "RUNNER_DEBUG=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=1200000 --verbose --detectOpenHandles",
     "all": "npm run lint && npm run prepare && npm run test"
   },
   "repository": {

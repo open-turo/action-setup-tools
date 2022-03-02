@@ -8,3 +8,13 @@ describe("findRoot", () => {
         return expect(tool.findRoot("tfenv")).resolves.toContain("tfenv")
     })
 })
+
+describe("setup", () => {
+    it("works with an override version", () => {
+        return new Terraform().setup("1.1.2")
+    })
+
+    it("is harmless if there's no versions", () => {
+        return new Terraform().setup()
+    })
+})

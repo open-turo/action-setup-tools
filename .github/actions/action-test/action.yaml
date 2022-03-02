@@ -1,20 +1,38 @@
 name: Action Test
 description: Tests the action directly
+inputs:
+  use-versions:
+    description: "Use versions"
+    default: "true"
+    required: true
 runs:
   using: composite
   steps:
     - uses: ./.github/actions/install-tools
-    - shell: bash
+    - name: Install and build package
+      shell: bash
       run: npm ci
-    - shell: bash
-      run: npm run prepare
-    - uses: ./versions
+    - name: Run action using inputs
+      uses: ./versions
+      if: inputs.use-versions == 'true'
       with:
         go: 1.17.6
         java: 17.0.2-tem
         node: 16.13.2
         python: 3.10.2
         terraform: 1.1.5
+    - name: Create version files
+      shell: bash
+      if: inputs.use-versions != 'true'
+      run: |
+        echo "java=17.0.2-tem" > .sdkmanrc
+        echo "16.13.2" > .node-version
+        echo "3.10.2" > .python-version
+        echo "1.17.6" > .go-version
+        echo "1.1.5" > .terraform-version
+    - name: Run action using version files
+      uses: ./
+      if: inputs.use-versions != 'true'
     - shell: bash
       run: go version || true
     - shell: bash

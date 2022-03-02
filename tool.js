@@ -62,20 +62,26 @@ export default class Tool {
     // parsable version strings in an array. provide true for useLooseVersionFinding
     // when the expected version string contains non-version appearing values such
     // as go1.16.8
-    async version(cmd, useLooseVersionFinding = true) {
-        return this.subprocess(cmd, null, { silent: true })
+    async version(cmd, parser) {
+        if (!parser) {
+            parser = (text) => findVersions(text, { loose: true })
+        }
+        return this.subprocess(cmd, {}, { silent: true })
             .then((proc) => {
                 if (proc.stdout) {
-                    let stdoutVersions = findVersions(proc.stdout, {
-                        loose: useLooseVersionFinding,
-                    })
+                    let stdoutVersions = parser(proc.stdout)
                     if (stdoutVersions) return stdoutVersions
                 }
                 if (proc.stderr) {
-                    return findVersions(proc.stderr)
+                    return parser(proc.stderr)
                 }
+                this.debug("version: no output parsed")
+                return []
             })
             .then((versions) => {
+                if (!versions || versions.length < 1) {
+                    throw new Error(`${cmd}: no version found`)
+                }
                 this.info(`${cmd}: ${versions[0]}`)
                 return versions[0]
             })
@@ -84,14 +90,23 @@ export default class Tool {
 
     // validateVersion returns the found current version from a subprocess which
     // is compared against the expected value given
-    async validateVersion(command, expected, mutator = null) {
-        mutator = mutator || ((v) => v)
-        let version = await this.version(command)
-        version = mutator(version)
+    async validateVersion(command, expected, parser) {
+        let version = await this.version(command, parser)
         if (expected != version) {
-            this.logAndExit(`version mismatch ${expected} != ${version}`)()
+            this.logAndExit(`version mismatch ${expected} != ${version}`)(
+                new Error("version mismatch"),
+            )
         }
         return version
+    }
+
+    haveVersion(version) {
+        if (!version || version.length < 1) {
+            this.debug("skipping")
+            return false
+        }
+        this.info(`desired version: ${version}`)
+        return true
     }
 
     // subprocess invokes `cmd` with environment `env` and resolves the promise with
@@ -119,7 +134,7 @@ export default class Tool {
                 .then((result) => {
                     if (result.exitCode > 0) {
                         let err = new Error(
-                            "subprocess exited with non-zero code",
+                            `subprocess exited with non-zero code: ${cmd}`,
                         )
                         err.exitCode = result.exitCode
                         err.stdout = result.stdout
@@ -145,7 +160,9 @@ export default class Tool {
         return (err) => {
             if (err) this.error(err)
             core.setFailed(msg)
-            process.exit(1)
+            // TODO: Decide if we want to throw or exit
+            // process.exit(1)
+            throw err
         }
     }
 
@@ -170,14 +187,15 @@ export default class Tool {
 
         // Use a subshell get the command path or function name and
         // differentiate in a sane way
-        const check = `bash -c "command -v ${tool}"`
+        // TODO: Remove this since the subprocess defaults to sh, maybe
+        // const check = `bash -c "command -v ${tool}"`
+        const check = `sh -c "command -v ${tool}"`
         const proc = await this.subprocess(check, {}, { silent: true }).catch(
-            (err) => {
-                this.error(err)
-                return defaultPath
+            () => {
+                return { stdout: defaultPath }
             },
         )
-        toolPath = proc.stdout.trim()
+        toolPath = proc.stdout ? proc.stdout.trim() : ""
         if (toolPath == tool) {
             // This means it's a function from the subshell profile
             // somewhere, so we just have to use the default
@@ -186,7 +204,7 @@ export default class Tool {
         }
         if (!fs.existsSync(toolPath)) {
             // This is a weird error case
-            this.error("tool path does not exit")
+            this.error(`tool path does not exist: ${toolPath}`)
             return defaultPath
         }
 
