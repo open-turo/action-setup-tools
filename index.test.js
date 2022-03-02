@@ -1,3 +1,5 @@
+import { jest } from "@jest/globals"
+
 import {
     shimSdkman,
     runAction,
@@ -6,19 +8,34 @@ import {
 } from "./testutil"
 
 beforeAll(shimSdkman)
+beforeAll(() => {
+    process.env.RUN_ASYNC = "false"
+})
 
 describe("run", () => {
-    it("skips all tools if INPUT env empty", () => {
+    it("skips all tools if INPUT env empty", async () => {
         return runAction("index", {}).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
-            expect(proc.stdout).toContain("skipping golang")
-            expect(proc.stdout).toContain("skipping java")
-            expect(proc.stdout).toContain("skipping python")
-            expect(proc.stdout).toContain("skipping terraform")
+            expect(proc.stdout).toMatch(/go.*skipping/)
+            expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/node.*skipping/)
+            expect(proc.stdout).toMatch(/python.*skipping/)
+            expect(proc.stdout).toMatch(/terraform.*skipping/)
         })
     })
 
-    it("works with all tools", () => {
+    it("works asynchronously", async () => {
+        return runAction("index", { RUN_ASYNC: "true" }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toMatch(/go.*skipping/)
+            expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/node.*skipping/)
+            expect(proc.stdout).toMatch(/python.*skipping/)
+            expect(proc.stdout).toMatch(/terraform.*skipping/)
+        })
+    })
+
+    it("works with all tools", async () => {
         const goVersion = "1.17.6"
         const desiredJavaVersion = "17.0.2"
         const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
@@ -49,8 +66,83 @@ describe("run", () => {
     })
 })
 
+describe("inline", () => {
+    var run
+    var runner
+    var origEnv = { ...process.env }
+    const mockProcessExit = jest
+        .spyOn(process, "exit")
+        .mockImplementation((code) => {
+            throw new Error(`process.exit(${code})`)
+        })
+
+    beforeAll(shimSdkman)
+    beforeAll(async () =>
+        import("./index").then((m) => {
+            run = m.default
+            runner = m.runner
+        }),
+    )
+    beforeEach(() => mockProcessExit.mockClear())
+    beforeEach(() => (process.env.RUN_AUTO = "false"))
+    afterEach(() => {
+        process.env = { ...origEnv }
+        jest.resetModules()
+    })
+
+    it("works", async () => {
+        return run()
+    })
+
+    it("works in parallel", async () => {
+        process.env.RUN_ASYNC = "true"
+        return run()
+    })
+
+    it("works in serial", async () => {
+        process.env.RUN_ASYNC = "false"
+        return run()
+    })
+
+    it("works in parallel when there's actually tools", async () => {
+        process.env.RUN_ASYNC = "true"
+        process.env.INPUT_GO = "1.17.6"
+        return run()
+    })
+
+    it("works in serial when there's actually tools", async () => {
+        process.env.RUN_ASYNC = "false"
+        process.env.INPUT_GO = "1.17.6"
+        return run()
+    })
+
+    it("handles an error in serial", async () => {
+        process.env.RUN_ASYNC = "false"
+        process.env.INPUT_GO = "8.0.282" // deliberately bad version
+        return expect(run()).rejects.toThrow(
+            "subprocess exited with non-zero code: goenv install -s 8.0.282",
+        )
+    })
+
+    it("handles multiple errors in parallel", async () => {
+        process.env.INPUT_GO = "8.0.282" // deliberately bad version
+        process.env.INPUT_NODE = "8.0.282" // deliberately bad version
+        return expect(run()).rejects.toThrow(
+            /subprocess exited with non-zero code: .* install/,
+        )
+    })
+
+    it("handles an error wrapped in runner", async () => {
+        process.env.RUN_AUTO = "true"
+        process.env.INPUT_GO = "8.0.282" // deliberately bad version
+        return expect(runner()).resolves.toBe(
+            "subprocess exited with non-zero code: goenv install -s 8.0.282",
+        )
+    })
+})
+
 describe("golang", () => {
-    it("works", () => {
+    it("works", async () => {
         const desiredVersion = "1.17.6"
         return runAction("index", { INPUT_GO: desiredVersion }).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
@@ -77,7 +169,9 @@ describe("java", () => {
     const desiredVersion = "17.0.2"
     const sdkmanVersionIdentifier = `${desiredVersion}-tem`
 
-    it("works", () => {
+    beforeAll(shimSdkman)
+
+    it("works", async () => {
         return runAction("index", { INPUT_JAVA: sdkmanVersionIdentifier }).then(
             (proc) => {
                 expect(proc.stderr.toString()).toBe("")
@@ -104,7 +198,7 @@ describe("java", () => {
 })
 
 describe("node", () => {
-    it("works", () => {
+    it("works", async () => {
         const desiredVersion = "16.13.2"
         return runAction("index", { INPUT_NODE: desiredVersion }).then(
             (proc) => {
@@ -132,7 +226,7 @@ describe("node", () => {
 })
 
 describe("python", () => {
-    it("works", () => {
+    it("works", async () => {
         const desiredVersion = "3.10.2"
         return runAction("index", { INPUT_PYTHON: desiredVersion }).then(
             (proc) => {
@@ -161,7 +255,7 @@ describe("python", () => {
 })
 
 describe("terraform", () => {
-    it("works with terraform", () => {
+    it("works with terraform", async () => {
         const version = "1.1.2"
         return runAction("index", { INPUT_TERRAFORM: version }).then((proc) => {
             expect(proc.stderr.toString()).toBe("")

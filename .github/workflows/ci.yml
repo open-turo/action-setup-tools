@@ -27,8 +27,20 @@ jobs:
 
   # Build and run the action from this repo to test full functionality
   action:
-    name: Action test
+    name: Test action with inputs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/action-test
+        with:
+          use-versions: false
+
+  # Build and run the action from this repo to test full functionality
+  action-versions:
+    name: Test action with version files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/action-test
+        with:
+          use-versions: true

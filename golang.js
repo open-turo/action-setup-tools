@@ -19,12 +19,7 @@ export default class Golang extends Tool {
             desiredVersion,
             ".go-version",
         )
-        if (!checkVersion) {
-            // Neither version was given nor did we find the auto configuration, so
-            // we don't even attempt to configure golang.
-            this.debug("skipping golang")
-            return
-        }
+        if (!this.haveVersion(checkVersion)) return
 
         // Construct the execution environment for goenv
         this.env = await this.makeEnv()
@@ -35,13 +30,13 @@ export default class Golang extends Tool {
         await this.version("goenv --version")
 
         if (!io.which("go")) {
+            // This has to be invoked otherwise it just returns a function
             this.logAndExit("GOENV_ROOT misconfigured")()
         }
 
-        // If we're overriding the version, make sure we set it in the environment
-        // now, and downstream so tfenv knows it
+        // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            this.env.GOENV_VERSION = checkVersion
+            core.exportVariable("GOENV_VERSION", checkVersion)
         }
 
         // using -s option to skip the install and become a no-op if the
@@ -58,11 +53,6 @@ export default class Golang extends Tool {
         // Sanity check that the go command works and its reported version matches what we have
         // requested to be in place.
         await this.validateVersion("go version", checkVersion)
-
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            core.exportVariable("GOENV_VERSION", checkVersion)
-        }
 
         // If we got this far, we have successfully configured golang.
         core.setOutput(Golang.tool, checkVersion)
