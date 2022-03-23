@@ -4,6 +4,10 @@ import { jest } from "@jest/globals"
 
 import Tool from "./tool"
 
+import { Cleaner, TestTool, Mute } from "./testutil"
+
+Mute.all()
+
 describe("getVersion", () => {
     const repoToolVersionFilename = ".go-version"
 
@@ -12,8 +16,8 @@ describe("getVersion", () => {
     })
 
     it("works when action desired version present", () => {
-        const underTest = new Tool()
-        const [checkVersion, isVersionOverridden] = underTest.getVersion(
+        const tool = new TestTool()
+        const [checkVersion, isVersionOverridden] = tool.getVersion(
             "1.2.1",
             null,
         )
@@ -23,8 +27,8 @@ describe("getVersion", () => {
 
     it("works when desired version present in dot file", () => {
         fs.writeFileSync(repoToolVersionFilename, "1.2.2")
-        const underTest = new Tool()
-        const [checkVersion, isVersionOverridden] = underTest.getVersion(
+        const tool = new TestTool()
+        const [checkVersion, isVersionOverridden] = tool.getVersion(
             null,
             repoToolVersionFilename,
         )
@@ -34,8 +38,8 @@ describe("getVersion", () => {
 
     it("works when action desired version and desired version present in dot file", () => {
         fs.writeFileSync(repoToolVersionFilename, "1.1.2")
-        const underTest = new Tool()
-        const [checkVersion, isVersionOverridden] = underTest.getVersion(
+        const tool = new TestTool()
+        const [checkVersion, isVersionOverridden] = tool.getVersion(
             "1.2.3",
             repoToolVersionFilename,
         )
@@ -45,8 +49,8 @@ describe("getVersion", () => {
 
     it("works when empty version present in dot file", () => {
         fs.writeFileSync(repoToolVersionFilename, "")
-        const underTest = new Tool()
-        const [checkVersion, isVersionOverridden] = underTest.getVersion(
+        const tool = new TestTool()
+        const [checkVersion, isVersionOverridden] = tool.getVersion(
             null,
             repoToolVersionFilename,
         )
@@ -55,11 +59,8 @@ describe("getVersion", () => {
     })
 
     it("works when no desired version present", () => {
-        const underTest = new Tool()
-        const [checkVersion, isVersionOverridden] = underTest.getVersion(
-            null,
-            null,
-        )
+        const tool = new TestTool()
+        const [checkVersion, isVersionOverridden] = tool.getVersion(null, null)
         expect(checkVersion).toBe(null)
         expect(isVersionOverridden).toBe(null)
     })
@@ -77,21 +78,21 @@ describe("version", () => {
     })
 
     it("works", async () => {
-        const underTest = new Tool()
-        const version = await underTest.version("tfenv --version")
-        expect(version).toMatch(/2\.2\.2/)
+        const tool = new TestTool()
+        const version = await tool.version("bash --version")
+        expect(version).toMatch(/^\d+\.\d+\.\d+$/)
     })
 
     // Skipping this test because it makes tests look like they fail
-    it.skip("errors sensibly if a thing isn't found", () => {
-        const underTest = new Tool()
-        return expect(underTest.version("exit 1")).rejects.toThrow(
-            /process.exit.1/,
+    it("errors sensibly if a thing isn't found", () => {
+        const tool = new TestTool()
+        return expect(tool.version("fake-version")).rejects.toThrow(
+            /Unable to locate executable file: fake-version/,
         )
     })
 
     it("handles java 1.8.0 output (regression)", () => {
-        const tool = new Tool()
+        const tool = new TestTool()
         return expect(
             tool.version(
                 `sh -c "echo -e 'openjdk version 1.8.0_282\\nOpenJDK Runtime Environment (build 1.8.0_282-b08)\\nOpenJDK 64-Bit Server VM (build 25.282-b08, mixed mode)'"`,
@@ -108,19 +109,41 @@ describe("findRoot", () => {
             }
         }
     })
+
     it("works", async () => {
-        const tool = new Tool()
-        const found = await tool.findRoot("nodenv")
-        expect(found).toContain("nodenv")
+        const tool = new TestTool()
+        const found = await tool.findRoot()
+        expect(found).toContain(tool.installerPath)
     })
 
     it("throws if there's a bad tool root", () => {
-        const tool = new Tool()
-        tool.tool = "nodenv"
-        process.env.NODENV_ROOT = "/tmp/nonexistent"
-        return expect(tool.findRoot(tool.tool)).rejects.toThrow(
-            /NODENV_ROOT misconfigured:/,
+        const tool = new TestTool()
+        process.env.TESTENV_ROOT = "/tmp/nonexistent"
+        return expect(tool.findRoot()).rejects.toThrow(
+            /TESTENV_ROOT misconfigured:/,
         )
+    })
+})
+
+describe("tempRoot", () => {
+    const cleaner = new Cleaner(TestTool, "testenv")
+    afterEach(cleaner.clean)
+
+    it("creates a temporary directory", () => {
+        const tool = new TestTool()
+        const temp = tool.tempRoot
+        cleaner.root = temp
+        expect(temp).toContain(tool.defaults.RUNNER_TEMP)
+        expect(temp).toContain("/.test")
+        expect(fs.existsSync(temp)).toBe(true)
+    })
+
+    it("works as a static method", () => {
+        const temp = TestTool.tempRoot()
+        cleaner.root = temp
+        expect(temp).toContain(TestTool.defaults.RUNNER_TEMP)
+        expect(temp).toContain("/.test")
+        expect(fs.existsSync(temp)).toBe(true)
     })
 })
 

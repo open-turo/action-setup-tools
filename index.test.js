@@ -1,20 +1,24 @@
 import { jest } from "@jest/globals"
 
-import {
-    shimSdkman,
-    runAction,
-    runActionExpectError,
-    cleanPath,
-} from "./testutil"
+import { runAction, Mute, runJS } from "./testutil"
 
-beforeAll(shimSdkman)
+Mute.all()
+
 beforeAll(() => {
     process.env.RUN_ASYNC = "false"
 })
 
+describe("skipping slow tests", () => {
+    if (process.env.TEST_FAST) {
+        it.only("", () => {})
+    }
+})
+
 describe("run", () => {
     it("skips all tools if INPUT env empty", async () => {
-        return runAction("index", {}).then((proc) => {
+        // this runJS is just a sanity check for invoking the subprocess
+        // directly without using Tool.subprocess
+        return runJS("index", {}).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
@@ -24,7 +28,7 @@ describe("run", () => {
         })
     })
 
-    it("works asynchronously", async () => {
+    it("skips asynchronously", async () => {
         return runAction("index", { RUN_ASYNC: "true" }).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
@@ -39,15 +43,15 @@ describe("run", () => {
         const goVersion = "1.17.6"
         const desiredJavaVersion = "17.0.2"
         const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
-        const pyVersion = "3.10.2"
         const tfVersion = "1.1.2"
         const nodeVersion = "16.13.2"
+        const pyVersion = process.env.TEST_SLOW ? "3.10.2" : ""
         return runAction("index", {
             INPUT_GO: goVersion,
             INPUT_JAVA: sdkmanJavaVersionIdentifier,
             INPUT_NODE: nodeVersion,
-            INPUT_PYTHON: pyVersion,
             INPUT_TERRAFORM: tfVersion,
+            INPUT_PYTHON: pyVersion,
         }).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`go version: ${goVersion}`)
@@ -58,10 +62,14 @@ describe("run", () => {
             expect(proc.stdout).toContain("java success!")
             expect(proc.stdout).toContain(`node --version: ${nodeVersion}`)
             expect(proc.stdout).toContain("node success!")
-            expect(proc.stdout).toContain(`python --version: ${pyVersion}`)
-            expect(proc.stdout).toContain("python success!")
             expect(proc.stdout).toContain(`terraform --version: ${tfVersion}`)
             expect(proc.stdout).toContain("terraform success!")
+            if (process.env.SLOW_TEST) {
+                expect(proc.stdout).toContain(`python --version: ${pyVersion}`)
+                expect(proc.stdout).toContain("python success!")
+            } else {
+                expect(proc.stdout).toMatch(/python.*skipping/)
+            }
         })
     })
 })
@@ -76,7 +84,6 @@ describe("inline", () => {
             throw new Error(`process.exit(${code})`)
         })
 
-    beforeAll(shimSdkman)
     beforeAll(async () =>
         import("./index").then((m) => {
             run = m.default
@@ -90,16 +97,16 @@ describe("inline", () => {
         jest.resetModules()
     })
 
-    it("works", async () => {
+    it("doesn't error if there's nothing to run", async () => {
         return run()
     })
 
-    it("works in parallel", async () => {
+    it("doesn't error if there's nothing to run in parallel", async () => {
         process.env.RUN_ASYNC = "true"
         return run()
     })
 
-    it("works in serial", async () => {
+    it("doesn't error if there's nothing to run in serial", async () => {
         process.env.RUN_ASYNC = "false"
         return run()
     })
@@ -138,142 +145,5 @@ describe("inline", () => {
         return expect(runner()).resolves.toBe(
             "subprocess exited with non-zero code: goenv install -s 8.0.282",
         )
-    })
-})
-
-describe("golang", () => {
-    it("works", async () => {
-        const desiredVersion = "1.17.6"
-        return runAction("index", { INPUT_GO: desiredVersion }).then((proc) => {
-            expect(proc.stderr.toString()).toBe("")
-            expect(proc.stdout).toContain(`go version: ${desiredVersion}`)
-            expect(proc.stdout).toContain("golang success!")
-        })
-    })
-
-    it("fails with bad GOENV_ROOT", () => {
-        let env = {
-            INPUT_GO: "1.17.3",
-            GOENV_ROOT: "/tmp/.goenv",
-            PATH: cleanPath("shims"),
-        }
-        return expect(
-            runActionExpectError("index", env).catch((err) => {
-                throw new Error(`${err.stdout}\n${err.stderr}`)
-            }),
-        ).rejects.toThrow(/::error::GOENV_ROOT misconfigured/)
-    })
-})
-
-describe("java", () => {
-    const desiredVersion = "17.0.2"
-    const sdkmanVersionIdentifier = `${desiredVersion}-tem`
-
-    beforeAll(shimSdkman)
-
-    it("works", async () => {
-        return runAction("index", { INPUT_JAVA: sdkmanVersionIdentifier }).then(
-            (proc) => {
-                expect(proc.stderr.toString()).toBe("")
-                expect(proc.stdout).toContain(
-                    `java -version: ${desiredVersion}`,
-                )
-                expect(proc.stdout).toContain("java success!")
-            },
-        )
-    })
-
-    it("fails with bad SDKMAN_DIR", () => {
-        let env = {
-            INPUT_JAVA: sdkmanVersionIdentifier,
-            SDKMAN_DIR: "/tmp/.sdkman",
-            PATH: cleanPath("sdkman"),
-        }
-        return expect(
-            runActionExpectError("index", env).catch((err) => {
-                throw new Error(`${err.stdout}\n${err.stderr}`)
-            }),
-        ).rejects.toThrow(/::error::SDKMAN_DIR misconfigured/)
-    })
-})
-
-describe("node", () => {
-    it("works", async () => {
-        const desiredVersion = "16.13.2"
-        return runAction("index", { INPUT_NODE: desiredVersion }).then(
-            (proc) => {
-                expect(proc.stderr.toString()).toBe("")
-                expect(proc.stdout).toContain(
-                    `node --version: ${desiredVersion}`,
-                )
-                expect(proc.stdout).toContain("node success!")
-            },
-        )
-    })
-
-    it("fails with bad NODENV_ROOT", () => {
-        let env = {
-            INPUT_NODE: "16.13.2",
-            NODENV_ROOT: "/tmp/.nodenv",
-            PATH: cleanPath("nodenv"),
-        }
-        return expect(
-            runActionExpectError("index", env).catch((err) => {
-                throw new Error(err.stdout)
-            }),
-        ).rejects.toThrow(/::error::NODENV_ROOT misconfigured/)
-    })
-})
-
-describe("python", () => {
-    it("works", async () => {
-        const desiredVersion = "3.10.2"
-        return runAction("index", { INPUT_PYTHON: desiredVersion }).then(
-            (proc) => {
-                expect(proc.stderr.toString()).toBe("")
-                expect(proc.stdout).toContain(
-                    `python --version: ${desiredVersion}`,
-                )
-                expect(proc.stdout).toContain("python success!")
-            },
-        )
-    })
-
-    it("fails with bad PYENV_ROOT", () => {
-        // This nonsense is to filter out pyenv if it's already on the path
-        let env = {
-            INPUT_PYTHON: "3.10.2",
-            PYENV_ROOT: "/tmp/.pyenv",
-            PATH: cleanPath("pyenv"),
-        }
-        return expect(
-            runActionExpectError("index", env).catch((err) => {
-                throw new Error(err.stdout)
-            }),
-        ).rejects.toThrow(/::error::PYENV_ROOT misconfigured/)
-    })
-})
-
-describe("terraform", () => {
-    it("works with terraform", async () => {
-        const version = "1.1.2"
-        return runAction("index", { INPUT_TERRAFORM: version }).then((proc) => {
-            expect(proc.stderr.toString()).toBe("")
-            expect(proc.stdout).toContain(`terraform --version: ${version}`)
-            expect(proc.stdout).toContain("terraform success!")
-        })
-    })
-
-    it("fails with bad TFENV_ROOT", () => {
-        let env = {
-            INPUT_TERRAFORM: "1.1.2",
-            TFENV_ROOT: "/tmp/.tfenv",
-            PATH: cleanPath("tfenv"),
-        }
-        return expect(
-            runActionExpectError("index", env).catch((err) => {
-                throw new Error(err.stdout)
-            }),
-        ).rejects.toThrow(/::error::TFENV_ROOT misconfigured/)
     })
 })

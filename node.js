@@ -1,4 +1,6 @@
 import path from "path"
+import assert from "assert"
+import fsPromises from "fs/promises"
 
 import core from "@actions/core"
 import findVersions from "find-versions"
@@ -7,6 +9,10 @@ import Tool from "./tool.js"
 
 export default class Node extends Tool {
     static tool = "node"
+    static envVar = "NODENV_ROOT"
+    static envPaths = ["bin", "shims"]
+    static installer = "nodenv"
+
     constructor() {
         super(Node.tool)
     }
@@ -14,14 +20,11 @@ export default class Node extends Tool {
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] =
             this.getNodeVersion(desiredVersion)
-        if (!this.haveVersion(checkVersion)) return
-
-        // Construct the execution environment for nodenv
-        this.env = await this.makeEnv()
+        if (!(await this.haveVersion(checkVersion))) return
 
         // Check if nodenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
-        await this.version("nodenv --version")
+        await this.findInstaller()
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
@@ -40,7 +43,7 @@ export default class Node extends Tool {
 
         // Sanity check that the node command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion("node --version", checkVersion)
+        await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured node.
         this.info("node success!")
@@ -73,23 +76,38 @@ export default class Node extends Tool {
         return [null, null]
     }
 
-    async makeEnv() {
-        let env = {}
-        let nodenvRoot = await this.findRoot("nodenv")
-        env.NODENV_ROOT = nodenvRoot
+    /**
+     * Download and configures nodenv.
+     *
+     * @param  {string} root - Directory to install nodenv into (NODENV_ROOT).
+     * @return {string} The value of NODENV_ROOT.
+     */
+    async install(root) {
+        assert(root, "root is required")
+        // Build our URLs
+        const gh = `https://${process.env.GITHUB_SERVER || "github.com"}/nodenv`
+        const url = {}
+        url.nodenv = `${gh}/nodenv/archive/refs/heads/master.tar.gz`
+        url.nodebulid = `${gh}/node-build/archive/refs/heads/master.tar.gz`
+        url.nodedoctor = `${gh}/nodenv-installer/raw/master/bin/nodenv-doctor`
 
-        // nodenv/shims must be be placed on the path so that the node command itself
-        // can be located at runtime.
-        // Add it to our path explicitly since the nodenv command is not likely
-        // on the default PATH
-        const nodenvBin = path.join(nodenvRoot, "bin")
-        const nodenvShims = path.join(nodenvRoot, "shims")
-        this.debug(`Adding ${nodenvBin} and ${nodenvShims} to PATH`)
-        core.exportVariable("NODENV_ROOT", env.NODENV_ROOT)
-        core.addPath(nodenvBin)
-        core.addPath(nodenvShims)
+        root = await this.downloadTool(url.nodenv, { dest: root, strip: 1 })
+        this.info(`Downloaded nodenv to ${root}`)
 
-        return env
+        await this.downloadTool(url.nodebulid, path.join(root, "plugins"))
+        this.info(`Downloaded node-build to ${root}/plugins`)
+
+        const doctor = await this.downloadTool(url.nodedoctor)
+        this.info(`Downloaded node-doctor to ${doctor}`)
+
+        // Create environment for running node-doctor
+        await this.setEnv(root)
+        await this.subprocess(`bash ${doctor}`)
+
+        // Asynchronously clean up the downloaded doctor script
+        fsPromises.rm(doctor, { recursive: true }).catch(() => {})
+
+        return root
     }
 }
 

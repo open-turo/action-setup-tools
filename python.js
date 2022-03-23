@@ -1,4 +1,4 @@
-import path from "path"
+import assert from "assert"
 
 import core from "@actions/core"
 
@@ -6,6 +6,10 @@ import Tool from "./tool.js"
 
 export default class Python extends Tool {
     static tool = "python"
+    static envVar = "PYENV_ROOT"
+    static envPaths = ["bin", "shims", "plugins/pyenv-virtualenv/shims"]
+    static installer = "pyenv"
+
     constructor() {
         super(Python.tool)
     }
@@ -15,14 +19,11 @@ export default class Python extends Tool {
             desiredVersion,
             ".python-version",
         )
-        if (!this.haveVersion(checkVersion)) return
-
-        // Construct the execution environment for pyenv
-        this.env = await this.makeEnv()
+        if (!(await this.haveVersion(checkVersion))) return
 
         // Check if pyenv exists and can be run, and capture the version info while
         // we're at it
-        await this.version("pyenv --version")
+        await this.findInstaller()
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
@@ -41,7 +42,7 @@ export default class Python extends Tool {
         )
 
         // Sanity check the python command works, and output its version
-        await this.validateVersion("python --version", checkVersion)
+        await this.validateVersion(checkVersion)
 
         // Sanity check the pip command works, and output its version
         await this.version("pip --version")
@@ -51,29 +52,26 @@ export default class Python extends Tool {
         this.info("python success!")
     }
 
-    async makeEnv() {
-        let env = {}
-        let pyenvRoot = await this.findRoot("pyenv")
-        env.PYENV_ROOT = pyenvRoot
-
-        // Add it to our path explicitly since the pyenv command is not likely
-        // on the default PATH
-        const pyenvBin = path.join(pyenvRoot, "bin")
-        const pyenvShims = path.join(pyenvRoot, "shims")
-        const pyenvVenvShims = path.join(
-            pyenvRoot,
-            "plugins/pyenv-virtualenv/shims",
-        )
-        this.debug(
-            `Adding ${pyenvBin} and ${pyenvShims} and ${pyenvVenvShims} to PATH`,
-        )
-        core.exportVariable("PYENV_ROOT", env.PYENV_ROOT)
+    async setEnv() {
         core.exportVariable("PYENV_VIRTUALENV_INIT", 1)
-        core.addPath(pyenvBin)
-        core.addPath(pyenvShims)
-        core.addPath(pyenvVenvShims)
+        return super.setEnv()
+    }
 
-        return env
+    /**
+     * Download and configures pyenv.
+     *
+     * @param  {string} root - Directory to install pyenv into (PYENV_ROOT).
+     * @return {string} The value of PYENV_ROOT.
+     */
+    async install(root) {
+        assert(root, "root is required")
+        const gh = `https://${process.env.GITHUB_SERVER || "github.com"}/pyenv`
+        const url = `${gh}/pyenv/archive/refs/heads/master.tar.gz`
+
+        root = await this.downloadTool(url, { dest: root, strip: 1 })
+        this.info(`Downloaded pyenv to ${root}`)
+
+        return root
     }
 }
 

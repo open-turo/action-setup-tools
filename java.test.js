@@ -1,35 +1,82 @@
 import fs from "fs"
 
 import Java from "./java"
-import { shimSdkman } from "./testutil"
+
+import {
+    runAction,
+    runActionExpectError,
+    cleanPath,
+    Cleaner,
+    Mute,
+} from "./testutil"
+
+Mute.all()
+const rcfile = ".sdkmanrc"
+
+describe("runAction java", () => {
+    const desiredVersion = "17.0.2"
+    const sdkmanVersionIdentifier = `${desiredVersion}-tem`
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+
+    afterEach(cleaner.clean)
+
+    it.slow = process.env.TEST_FAST ? it.skip : it
+
+    it.slow("works", async () => {
+        return runAction("index", {
+            INPUT_JAVA: sdkmanVersionIdentifier,
+        }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(`java -version: ${desiredVersion}`)
+            expect(proc.stdout).toContain("java success!")
+            cleaner.captureRoot(proc.stdout)
+        })
+    })
+
+    it("fails with bad SDKMAN_DIR", () => {
+        let env = {
+            INPUT_JAVA: sdkmanVersionIdentifier,
+            SDKMAN_DIR: "/tmp/.sdkman",
+            PATH: cleanPath("sdkman"),
+        }
+        cleaner.root = env.SDKMAN_DIR
+        return expect(
+            runActionExpectError("index", env).catch((err) => {
+                cleaner.captureRoot(err.stdout ?? err.stderr)
+                throw new Error(`${err.stdout}\n${err.stderr}`)
+            }),
+        ).rejects.toThrow(/::error::SDKMAN_DIR misconfigured/)
+    })
+})
 
 describe("Java", () => {
-    const rcfile = ".sdkmanrc"
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+    afterEach(cleaner.clean)
 
-    beforeAll(shimSdkman)
-
-    afterEach(() => {
-        fs.rmSync(rcfile, { force: true })
-    })
-
-    it("works when java isn't wanted", () => {
+    it("works when java isn't wanted", async () => {
         const tool = new Java()
+        cleaner.root = await tool.findRoot()
         return tool.setup()
     })
 
-    it("parses a simple .sdkmanrc", () => {
+    // This case is well covered by the parseSdkmanrc suite below
+    it.skip("parses a simple .sdkmanrc", async () => {
         fs.writeFileSync(rcfile, "java=17.0.2-tem\n")
         const tool = new Java()
+        cleaner.root = await tool.findRoot()
         return tool.setup()
     })
 
-    it("works with java 1.8 nonsense", () => {
+    // This case is well covered by the validateVersion suite below
+    it.skip("works with java 1.8 nonsense", async () => {
         const tool = new Java()
+        cleaner.root = await tool.findRoot()
         return tool.setup("8.0.282-librca")
     })
 
-    it("sets a sensible JAVA_HOME", () => {
+    it("works and sets a sensible JAVA_HOME", async () => {
         const tool = new Java()
+        cleaner.root = await tool.findRoot()
         return tool.setup("8.0.282-librca").then(() => {
             expect(process.env.JAVA_HOME).toBe(
                 `${process.env.SDKMAN_DIR}/candidates/java/current`,
@@ -38,12 +85,20 @@ describe("Java", () => {
     })
 })
 
-describe("parseSdkmanrc", () => {
-    const rcfile = ".sdkmanrc"
+describe("install", () => {
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+    afterEach(cleaner.clean)
 
-    afterEach(() => {
-        fs.rmSync(rcfile, { force: true })
+    it("works", async () => {
+        const root = Java.tempRoot()
+        cleaner.root = await new Java().install(root)
+        expect(cleaner.root).toMatch(/\/\.sdkman/)
     })
+})
+
+describe("parseSdkmanrc", () => {
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+    afterEach(cleaner.clean)
 
     it("parses a simple .sdkmanrc", () => {
         fs.writeFileSync(rcfile, "java=17.0.2-tem\n")
@@ -77,15 +132,14 @@ describe("parseSdkmanrc", () => {
 
 describe("checkSdkmanSettings", () => {
     const target = "/tmp/action-setup-tools.sdkman.config"
-
-    afterEach(() => {
-        fs.rmSync(target, { force: true })
-    })
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+    afterEach(cleaner.clean)
+    afterEach(() => fs.rmSync(target, { force: true }))
 
     it("writes a fresh config file", () => {
         const tool = new Java()
         tool.configFile = target
-        tool.checkSdkmanSettings()
+        tool.checkSdkmanSettings(target)
         expect(fs.existsSync(target)).toBe(true)
         expect(fs.readFileSync(target, "utf8")).toMatch(
             /sdkman_auto_answer=true/,
@@ -96,7 +150,7 @@ describe("checkSdkmanSettings", () => {
         fs.writeFileSync(target, "sdkman_auto_answer=false")
         const tool = new Java()
         tool.configFile = target
-        tool.checkSdkmanSettings()
+        tool.checkSdkmanSettings(target)
         expect(fs.existsSync(target)).toBe(true)
         expect(fs.readFileSync(target, "utf8")).toMatch(
             /sdkman_auto_answer=true/,
@@ -105,13 +159,10 @@ describe("checkSdkmanSettings", () => {
 })
 
 describe("getJavaVersion", () => {
-    const sdkmanRcFilename = ".sdkmanrc"
+    const cleaner = new Cleaner(Java, "sdkman", [rcfile])
+    afterEach(cleaner.clean)
 
-    afterEach(() => {
-        fs.rmSync(sdkmanRcFilename, { force: true })
-    })
-
-    it("works when action desired version present", () => {
+    it("works with action input", () => {
         const underTest = new Java()
         const [checkVersion, isVersionOverridden] = underTest.getJavaVersion(
             "1.2.1",
@@ -121,17 +172,17 @@ describe("getJavaVersion", () => {
         expect(isVersionOverridden).toBe(true)
     })
 
-    it("works when desired version present in dot file", () => {
+    it("works with .sdkmanrc", () => {
         const desiredVersion = "17.0.2-tem"
         const fileContents =
             "# Enable auto-env through the sdkman_auto_env config\n" +
             "# Add key=value pairs of SDKs to use below\n" +
             `java=${desiredVersion}\n`
-        fs.writeFileSync(sdkmanRcFilename, fileContents)
+        fs.writeFileSync(rcfile, fileContents)
         const underTest = new Java()
         const [checkVersion, isVersionOverridden] = underTest.getJavaVersion(
             null,
-            sdkmanRcFilename,
+            rcfile,
         )
         expect(checkVersion).toBe("17.0.2-tem")
         expect(isVersionOverridden).toBe(false)
@@ -143,22 +194,22 @@ describe("getJavaVersion", () => {
             "# Enable auto-env through the sdkman_auto_env config\n" +
             "# Add key=value pairs of SDKs to use below\n" +
             `java=${desiredVersion}`
-        fs.writeFileSync(sdkmanRcFilename, fileContents)
+        fs.writeFileSync(rcfile, fileContents)
         const underTest = new Java()
         const [checkVersion, isVersionOverridden] = underTest.getJavaVersion(
             "1.2.3",
-            sdkmanRcFilename,
+            rcfile,
         )
         expect(checkVersion).toBe("1.2.3")
         expect(isVersionOverridden).toBe(true)
     })
 
     it("works when empty version present in dot file", () => {
-        fs.writeFileSync(sdkmanRcFilename, "")
+        fs.writeFileSync(rcfile, "")
         const underTest = new Java()
         const [checkVersion, isVersionOverridden] = underTest.getJavaVersion(
             null,
-            sdkmanRcFilename,
+            rcfile,
         )
         expect(checkVersion).toBe(null)
         expect(isVersionOverridden).toBe(null)
@@ -175,21 +226,17 @@ describe("getJavaVersion", () => {
     })
 })
 
-describe("validateVersion", () => {
+describe("parseJavaVersionString", () => {
     const versionString =
-        `sh -c "echo -e 'openjdk version "1.8.0_282"\\n` +
+        `` +
+        `openjdk version "1.8.0_282"\\n` +
         `OpenJDK Runtime Environment (build 1.8.0_282-b08)\\n` +
-        `OpenJDK 64-Bit Server VM (build 25.282-b08, mixed mode)'"`
+        `OpenJDK 64-Bit Server VM (build 25.282-b08, mixed mode)`
     const expected = "8.0.282"
 
     it("handles java 8/1.8 nonsense output", () => {
         const tool = new Java()
-        return expect(
-            tool
-                .validateVersion(versionString, expected, (version) =>
-                    tool.parseJavaVersionString(expected, version),
-                )
-                .catch((err) => err),
-        ).resolves.toMatch(/8\.0\.282/)
+        const version = tool.parseJavaVersionString(expected, versionString)
+        expect(version[0]).toBe("8.0.282")
     })
 })

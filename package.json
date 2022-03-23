@@ -7,8 +7,9 @@
   "scripts": {
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist/main --source-map --license licenses.txt",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=1200000",
-    "test:debug": "RUNNER_DEBUG=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=1200000 --verbose --detectOpenHandles",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --testTimeout=180000 --verbose",
+    "test:debug": "RUNNER_DEBUG=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=180000 --verbose --detectOpenHandles",
+    "test:fast": "TEST_FAST=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --testTimeout=30000 --verbose --testPathIgnorePatterns='python|index'",
     "all": "npm run lint && npm run prepare && npm run test"
   },
   "repository": {
@@ -31,7 +32,9 @@
     "@actions/exec": "^1.1.1",
     "@actions/github": "^5.0.1",
     "@actions/io": "^1.1.2",
-    "find-versions": "^5.0.0"
+    "@actions/tool-cache": "^1.7.2",
+    "find-versions": "^5.0.0",
+    "semver": "^7.3.5"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",

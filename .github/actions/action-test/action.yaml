@@ -8,13 +8,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/install-tools
     - name: Install and build package
       shell: bash
       run: npm ci
     - name: Run action using inputs
-      uses: ./versions
       if: inputs.use-versions == 'true'
+      uses: ./versions
       with:
         go: 1.17.6
         java: 17.0.2-tem
@@ -25,31 +24,20 @@ runs:
       shell: bash
       if: inputs.use-versions != 'true'
       run: |
+        # Write version files
         echo "java=17.0.2-tem" > .sdkmanrc
         echo "16.13.2" > .node-version
         echo "3.10.2" > .python-version
         echo "1.17.6" > .go-version
         echo "1.1.5" > .terraform-version
     - name: Run action using version files
-      uses: ./
       if: inputs.use-versions != 'true'
+      uses: ./
     - shell: bash
-      run: go version || true
-    - shell: bash
-      run: java -version || true
-    - shell: bash
-      run: node --version || true
-    - shell: bash
-      run: python --version || true
-    - shell: bash
-      run: terraform --version || true
-    - shell: bash
-      run: go version | grep "1.17.6"
-    - shell: bash
-      run: java -version 2>&1 | grep "17.0.2"
-    - shell: bash
-      run: node --version | grep "16.13.2"
-    - shell: bash
-      run: python --version || grep "3.10.2"
-    - shell: bash
-      run: terraform --version | grep "1.1.5"
+      run: |
+        # Check versions
+        go version | grep "1.17.6"
+        java -version 2>&1 | grep "17.0.2"
+        node --version | grep "16.13.2"
+        python --version || grep "3.10.2"
+        terraform --version | grep "1.1.5"
