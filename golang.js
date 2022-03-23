@@ -1,4 +1,4 @@
-import path from "path"
+import assert from "assert"
 
 import io from "@actions/io"
 import core from "@actions/core"
@@ -7,6 +7,11 @@ import Tool from "./tool.js"
 
 export default class Golang extends Tool {
     static tool = "go"
+    static toolVersion = "go version"
+    static envVar = "GOENV_ROOT"
+    static envPaths = ["bin", "shims", "plugins/go-build/bin"]
+    static installer = "goenv"
+
     constructor() {
         super(Golang.tool)
     }
@@ -19,19 +24,15 @@ export default class Golang extends Tool {
             desiredVersion,
             ".go-version",
         )
-        if (!this.haveVersion(checkVersion)) return
-
-        // Construct the execution environment for goenv
-        this.env = await this.makeEnv()
+        if (!(await this.haveVersion(checkVersion))) return
 
         // Check if goenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
-        // core.debug("Attempting to obtain current golang version via goenv")
-        await this.version("goenv --version")
+        await this.findInstaller()
 
         if (!io.which("go")) {
             // This has to be invoked otherwise it just returns a function
-            this.logAndExit("GOENV_ROOT misconfigured")()
+            this.logAndExit(`${this.envVar} misconfigured`)()
         }
 
         // Set downstream environment variable for future steps in this Job
@@ -52,31 +53,33 @@ export default class Golang extends Tool {
 
         // Sanity check that the go command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion("go version", checkVersion)
+        await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured golang.
         core.setOutput(Golang.tool, checkVersion)
         this.info("golang success!")
     }
 
-    async makeEnv() {
-        let env = {}
-        const goenvRoot = await this.findRoot("goenv")
-        env.GOENV_ROOT = goenvRoot
-
-        // goenv/shims must be be placed on the path so that the go command itself
-        // can be located at runtime.
-        // Add it to our path explicitly since the goenv command is not likely
-        // on the default PATH
-        const goenvBin = path.join(goenvRoot, "bin")
-        const goenvShims = path.join(goenvRoot, "shims")
-        this.debug(`Adding ${goenvBin} and ${goenvShims} to PATH`)
-        core.exportVariable("GOENV_ROOT", env.GOENV_ROOT)
+    async setEnv() {
         core.exportVariable("GOENV_SHELL", "bash")
-        core.addPath(goenvBin)
-        core.addPath(goenvShims)
+        return super.setEnv()
+    }
 
-        return env
+    /**
+     * Download and configures goenv.
+     *
+     * @param  {string} root - Directory to install goenv into (GOENV_ROOT).
+     * @return {string} The value of GOENV_ROOT.
+     */
+    async install(root) {
+        assert(root, "root is required")
+        const gh = `https://${process.env.GITHUB_SERVER || "github.com"}/syndbg`
+        const url = `${gh}/goenv/archive/refs/heads/master.tar.gz`
+
+        root = await this.downloadTool(url, { dest: root, strip: 1 })
+        this.info(`Downloaded goenv to ${root}`)
+
+        return root
     }
 }
 

@@ -1,19 +1,30 @@
 import fs from "fs"
-import os from "os"
 import path from "path"
+import util from "util"
 import process from "process"
+import child_process from "child_process"
+
+import { jest } from "@jest/globals"
 
 import Tool from "./tool"
+
+const execAsync = util.promisify(child_process.exec)
+
+export class TestTool extends Tool {
+    static tool = "test"
+    static envVar = "TESTENV_ROOT"
+    static installer = "testenv"
+}
 
 // runAction returns a promise that wraps the subprocess action execution and
 // allows for capturing error output if DEBUG is enabled
 export async function runAction(name, env) {
     // const index = path.join(__dirname, name + '.js')
     const index = `${name}.js`
-    env = env || {}
-    let tool = new Tool("test")
+    let tool = new TestTool()
+    env = env ? { ...process.env, ...env } : env
     return tool
-        .subprocess(`node ${index}`, env, { silent: true })
+        .subprocess(`node ${index}`, { env: env, silent: true })
         .catch((err) => {
             throw new Error(
                 `subprocess failed code ${err.exitCode}\n${err.stdout}\n${err.stderr}`,
@@ -21,50 +32,162 @@ export async function runAction(name, env) {
         })
 }
 
+/**
+ * Run `name`.js in a subprocess using `env` as its environment.
+ *
+ * @param {String} name
+ * @param {Object} env
+ * @returns
+ */
+export async function runJS(name, env) {
+    const index = `${name}.js`
+    env = env ? { ...process.env, ...env } : env
+    const opts = {
+        env: env,
+        timeout: 5000,
+    }
+    return execAsync(`node ${index}`, opts)
+}
+
 // runActionExpectError returns a promise that wraps the subprocess action
 // execution and allows for capturing error output if DEBUG is enabled
 export async function runActionExpectError(name, env) {
     // const index = path.join(__dirname, name + '.js')
     const index = `${name}.js`
-    env = env || {}
-    let tool = new Tool("test")
-    return tool.subprocess(`node ${index}`, env, { silent: true })
+    let tool = new TestTool()
+    env = env ? { ...process.env, ...env } : env
+    return tool.subprocess(`node ${index}`, { env: env, silent: true })
 }
 
-// shimSdkman checks if sdk is present on the PATH and if not, creates a shim
-// for the test suite to use
-export async function shimSdkman() {
-    let tool = new Tool("sdkman")
-    return tool.subprocess("sdk version", {}, { silent: true }).catch(() => {
-        // If we're here, then we need to install a shim for sdk
-        const sdkmanDir =
-            process.env.SDKMAN_DIR || path.join(os.homedir(), ".sdkman")
-        if (!/shim-sdkman/.test(process.env.PATH)) {
-            // Update the PATH to include our sdk shim
-            process.env.PATH = `/tmp/shim-sdkman:${process.env.PATH}`
-        }
-        // Create our temp shim directory
-        if (!fs.existsSync("/tmp/shim-sdkman")) {
-            fs.mkdirSync("/tmp/shim-sdkman")
-        }
-        // Always overwrite the shim ensuring we have the current version of it
-        const shim = `#!/bin/bash
-export SDKMAN_DIR="${sdkmanDir}"
-SDKMAN_INIT_FILE="$SDKMAN_DIR/bin/sdkman-init.sh"
-if [[ ! -s "$SDKMAN_INIT_FILE" ]]; then exit 13; fi
-if [[ -z "$SDKMAN_AVAILABLE" ]]; then source "$SDKMAN_INIT_FILE" >/dev/null; fi
-export -f
-sdk "$@"
-        `
-        fs.writeFileSync("/tmp/shim-sdkman/sdk", shim, { mode: 0o755 })
-    })
-}
-
+/**
+ * Removes any path containing *name* from the PATH parts.
+ *
+ * @param {string} name - Name to search for in the PATH parts.
+ * @returns Cleaned path.
+ */
 export function cleanPath(name) {
+    if (!name) return process.env.PATH
     let path = process.env.PATH
     path = path.split(":")
     path = path.filter((i) => !i.includes(name))
     path = Array.from(new Set(path))
     path = path.join(":")
     return path
+}
+
+/**
+ * Helper to clean up automatically installed tools during test suites so we
+ * don't have collisions and false positives.
+ */
+const startupEnv = { ...process.env }
+export class Cleaner {
+    constructor(tool, name, files = []) {
+        this.tool = tool
+        this._name = name
+        this.files = files
+        this.roots = []
+        this.origEnv = { ...startupEnv }
+        // this.origEnv = {...process.env}
+    }
+
+    get name() {
+        return this._name ?? this.tool?.installer
+    }
+    get envVar() {
+        return this.tool.envVar
+    }
+    get root() {
+        if (this._root) return this._root
+        this._root = this.tool.tempRoot()
+        this.roots.push(this._root)
+        return this._root
+    }
+    set root(val) {
+        this.roots.push(val)
+        this._root = val
+    }
+
+    captureRoot(out) {
+        if (!out) return
+        const re = new RegExp(`::set-env name=${this.tool.envVar}::(.*)`)
+        const found = out.match(re)
+        if (!found) return
+        if (found.length > 1) this._root = found[1]
+    }
+
+    get clean() {
+        return this._clean.bind(this)
+    }
+    _clean() {
+        for (const name of this.files) {
+            this.rmSafe(name)
+        }
+        while (this.roots.length) {
+            this.cleanRoot(this.roots.pop())
+        }
+        if (this._root) {
+            this.cleanRoot(this._root)
+            delete this._root
+        }
+    }
+
+    cleanRoot(root) {
+        if (!root) return
+        this.rmSafe(root)
+        this.rmSafe(path.dirname(root))
+
+        if (root?.startsWith(process.env.RUNNER_TEMP)) {
+            this.rmSafe(root)
+        }
+
+        // Restore our original environment
+        process.env = this.origEnv
+    }
+
+    rmSafe(dir) {
+        const re = new RegExp(`${this.tool.tool}|${this.tool.installer}`)
+        if (!re.test(dir)) return
+        if (fs.existsSync(dir)) {
+            try {
+                fs.rmSync(dir, { recursive: true })
+            } catch (e) {
+                // no errors for me
+            }
+        }
+    }
+}
+
+/**
+ * Helper to silence stdout and stderr when we don't care about the output.
+ *
+ * This is necessary because the GitHub Actions toolkit functions use
+ * `stdout.write` directly for most of the output, and jest does not capture
+ * that output.
+ */
+export class Mute {
+    static all() {
+        // Don't mute if debug is enabled
+        if (process.env.RUNNER_DEBUG) return
+        global.beforeAll?.(Mute.std)
+        global.afterAll?.(Mute.reset)
+    }
+
+    static stdout() {
+        jest.spyOn(process.stdout, "write").mockImplementation(() => {})
+    }
+
+    static stderr() {
+        jest.spyOn(process.stderr, "write").mockImplementation(() => {})
+    }
+
+    static get std() {
+        return () => {
+            this.stdout()
+            this.stderr()
+        }
+    }
+
+    static get reset() {
+        return jest.resetModules.bind(jest)
+    }
 }

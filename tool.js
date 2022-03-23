@@ -1,20 +1,72 @@
 import fs from "fs"
 import os from "os"
 import path from "path"
+import crypto from "crypto"
 import process from "process"
 import fsPromises from "fs/promises"
 
+import io from "@actions/io"
 import core from "@actions/core"
+import toolCache from "@actions/tool-cache"
 import { getExecOutput } from "@actions/exec"
 import findVersions from "find-versions"
+import semver from "semver"
 
 // Superclass for all supported tools
 export default class Tool {
     static registry = {}
 
+    /** Default values that we don't want to bury in the code. */
+    static defaults = {
+        RUNNER_TEMP: process.env.RUNNER_TEMP ?? "/tmp/runner",
+    }
+    get defaults() {
+        return this.constructor.defaults
+    }
+
+    /** Accessors for the statics declared on subclasses. */
+    get tool() {
+        return this.constructor.tool
+    }
+    get toolVersion() {
+        return (
+            this.constructor.toolVersion ?? `${this.constructor.tool} --version`
+        )
+    }
+    get envVar() {
+        return this.constructor.envVar
+    }
+    get envPaths() {
+        const paths = this.constructor.envPaths ?? ["bin"]
+        return Array.isArray(paths) ? paths : [paths]
+    }
+    get installer() {
+        return this.constructor.installer
+    }
+    get installerPath() {
+        return this.constructor.installerPath ?? `.${this.installer}`
+    }
+    get installerVersion() {
+        return (
+            this.constructor.installerVersion ?? `${this.installer} --version`
+        )
+    }
+
+    /**
+     * Make a new Tool instance.
+     * @param {string} name - Tool name passed from subclass.
+     */
     constructor(name) {
         this.name = name
-        this.env = {}
+
+        const required = ["tool", "envVar", "installer"]
+        for (const member of required) {
+            if ((this.constructor[member] ?? null) == null) {
+                throw new Error(
+                    `${this.constructor.name}: missing required member '${member}'`,
+                )
+            }
+        }
 
         // Create logger wrapper functions for this tool
         const loggers = ["debug", "info", "warning", "notice", "error"]
@@ -58,22 +110,33 @@ export default class Tool {
         return [null, null]
     }
 
-    // version runs `cmd` with environment `env` and resolves the promise with any
-    // parsable version strings in an array. provide true for useLooseVersionFinding
-    // when the expected version string contains non-version appearing values such
-    // as go1.16.8
-    async version(cmd, parser) {
-        if (!parser) {
-            parser = (text) => findVersions(text, { loose: true })
-        }
-        return this.subprocess(cmd, {}, { silent: true })
+    /**
+     * Return an array of the found version strings in `text`.
+     * @param {string} text - Text to parse looking for versions.
+     * @returns {Array} - Found version strings.
+     */
+    versionParser(text) {
+        return findVersions(text, { loose: true })
+    }
+
+    /**
+     * Run `cmd` with environment `env` and resolves the promise with any
+     * parsable version strings in an array. provide true for
+     * useLooseVersionFinding when the expected version string contains
+     * non-version appearing values such as go1.16.8.
+     * @param {string} cmd - Command to run to find version output.
+     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @returns {string} - The version string that was found.
+     */
+    async version(cmd, soft) {
+        let check = this.subprocess(cmd, { silent: true })
             .then((proc) => {
                 if (proc.stdout) {
-                    let stdoutVersions = parser(proc.stdout)
+                    let stdoutVersions = this.versionParser(proc.stdout)
                     if (stdoutVersions) return stdoutVersions
                 }
                 if (proc.stderr) {
-                    return parser(proc.stderr)
+                    return this.versionParser(proc.stderr)
                 }
                 this.debug("version: no output parsed")
                 return []
@@ -85,14 +148,23 @@ export default class Tool {
                 this.info(`${cmd}: ${versions[0]}`)
                 return versions[0]
             })
-            .catch(this.logAndExit(`failed to get version: ${cmd}`))
+
+        if (!soft) {
+            check = check.catch(
+                this.logAndExit(`failed to get version: ${cmd}`),
+            )
+        }
+        return check
     }
 
     // validateVersion returns the found current version from a subprocess which
     // is compared against the expected value given
-    async validateVersion(command, expected, parser) {
-        let version = await this.version(command, parser)
+    async validateVersion(expected) {
+        const command = this.toolVersion
+        let version = await this.version(command)
         if (expected != version) {
+            this.debug(`found command ${io.which(command.split(" ")[0])}`)
+            // this.debug(process.env.PATH)
             this.logAndExit(`version mismatch ${expected} != ${version}`)(
                 new Error("version mismatch"),
             )
@@ -100,18 +172,46 @@ export default class Tool {
         return version
     }
 
-    haveVersion(version) {
+    /**
+     * Return true if `version` is not empty.
+     *
+     * @param {string} version
+     * @returns
+     */
+    async haveVersion(version) {
         if (!version || version.length < 1) {
-            this.debug("skipping")
+            this.debug("skipping setup, no version found")
             return false
         }
-        this.info(`desired version: ${version}`)
-        return true
+        this.info(`Desired version: ${version}`)
+        if (process.env.IGNORE_INSTALLED) {
+            this.info("    not checking for installed tools")
+            return true
+        }
+        const found = await this.version(this.toolVersion, true)
+        this.info("    none found")
+        if (!found) return true
+
+        const semantic = `^${version.replace(/\.d+$/, ".x")}`
+        const ok = semver.satisfies(found, semantic)
+        if (!ok) {
+            this.info(
+                `Installed tool version ${found} does not satisfy ` +
+                    `${semantic}...`,
+            )
+            return true
+        }
+
+        this.info(
+            `Found installed tool version ${found} that satisfies ${semantic},` +
+                ` skipping setup...`,
+        )
+        return false
     }
 
     // subprocess invokes `cmd` with environment `env` and resolves the promise with
     // an object containing the output and any error that was caught
-    async subprocess(cmd, env, opts = { silent: false }) {
+    async subprocess(cmd, opts = { silent: false }) {
         let proc = {
             stdout: "",
             stderr: "",
@@ -121,13 +221,11 @@ export default class Tool {
 
         // Always merge the passed environment on top of the process environment so
         // we don't lose execution context
-        env = env || this.env || {}
-        opts.env = { ...process.env, ...env }
+        opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
 
-        // This lets us inspect the process output, otherwise an error is thrown and
-        // it is lost
-        opts.ignoreReturnCode =
-            opts.ignoreReturnCode != undefined ? opts.ignoreReturnCode : true
+        // This lets us inspect the process output, otherwise an error is thrown
+        // and it is lost
+        opts.ignoreReturnCode = opts.ignoreReturnCode ?? true
 
         return new Promise((resolve, reject) => {
             getExecOutput(cmd, [], opts)
@@ -149,6 +247,10 @@ export default class Tool {
                     resolve(proc)
                 })
                 .catch((err) => {
+                    if (/^Unable to locate executable file/.test(err.message)) {
+                        // this.debug("PATH = ", opts.env.PATH.split(":"))
+                        this.debug(`'${cmd.split()[0]}' not on PATH`)
+                    }
                     reject(err)
                 })
         })
@@ -160,20 +262,87 @@ export default class Tool {
         return (err) => {
             if (err) this.error(err)
             core.setFailed(msg)
-            // TODO: Decide if we want to throw or exit
-            // process.exit(1)
             throw err
         }
     }
 
-    // findRoot tries to find the root directory of the tool.
-    async findRoot(tool) {
-        // Env name are like TFENV_ROOT or NODENV_ROOT
-        const toolEnv = `${tool.toUpperCase()}_ROOT`
+    /**
+     * This checks if the installer tool, e.g. nodenv, is present and
+     * functional, otherwise it will run the install() method to install it.
+     */
+    async findInstaller() {
+        const cmd = this.installerVersion
+        const env = await this.getEnv()
+        let root = env[this.envVar]
+        this.info(`Finding installer ${cmd}`)
+        this.debug(JSON.stringify(env))
+        // Disable error logging while we do the install
+        const logError = this.error
+        this.error = () => {}
+        await this.subprocess(cmd, { env: env, silent: true }).catch(
+            async (err) => {
+                if (!/^Unable to locate executable file/.test(err.message)) {
+                    this.debug(`version probe errored: ${err}`)
+                    return err
+                }
+                this.info("Installer not found... attempting to install")
+                this.debug(`installing to root: ${root}`)
+                root = await this.install(root)
+                this.info("Install finished, setting environment")
+                await this.setEnv(root)
+                this.error = logError
+                this.info("Checking version")
+                return this.version(cmd).catch((err) => {
+                    this.debug(`version check failed: ${err.exitCode}`)
+                    this.debug(`  stdout: ${err.stdout}`)
+                    this.debug(`  stderr: ${err.stderr}`)
+                    throw err
+                })
+            },
+        )
+        this.error = logError
+    }
+
+    /**
+     * Return a temporary directory suitable for installing our tool within.
+     * @returns {string} - Temporary directory path.
+     */
+    get tempRoot() {
+        if (this._tempRoot) return this._tempRoot
+        this._tempRoot = this.constructor.tempRoot()
+        return this._tempRoot
+    }
+
+    /**
+     * Create and return a new temporary directory for installing our tool.
+     * @returns {string} - Temporary directory path.
+     */
+    static tempRoot() {
+        const root = path.join(
+            this.defaults.RUNNER_TEMP,
+            this.tool,
+            crypto.randomUUID(),
+            this.installerPath ?? `.${this.installer}`,
+        )
+        core.debug(`[${this.tool}]\tCreating temp root: ${root}`)
+        fs.mkdirSync(root, { recursive: true })
+        return root
+    }
+
+    /**
+     * Return the path to the tool installation directory, if found, otherwise
+     * return the default path to the tool.
+     *
+     * @returns {String} - Path to the root folder of the tool.
+     */
+    async findRoot() {
+        const tool = this.installer
+        const dirName = this.installerPath
+        const toolEnv = this.envVar
         let toolPath = process.env[toolEnv]
         // Return whatever's currently set if we have it
         if (toolPath) {
-            this.info(`${toolEnv} set from environment: ${toolPath}`)
+            this.debug(`${toolEnv} set from environment: ${toolPath}`)
             if (!fs.existsSync(toolPath)) {
                 throw new Error(
                     `${toolEnv} misconfigured: ${toolPath} does not exist`,
@@ -182,19 +351,24 @@ export default class Tool {
             return toolPath
         }
 
-        // Default path is ~/.<tool>/ since that's what our CI uses
-        const defaultPath = path.join(os.homedir(), `.${tool}`)
+        // Default path is ~/.<dir>/ since that's what our CI uses and most of
+        // the tools install there too
+        const defaultPath = path.join(os.homedir(), `${dirName}`)
 
         // Use a subshell get the command path or function name and
         // differentiate in a sane way
-        // TODO: Remove this since the subprocess defaults to sh, maybe
-        // const check = `bash -c "command -v ${tool}"`
+        const defaultEnv = {
+            ...process.env,
+            ...(await this.getEnv(defaultPath)),
+        }
         const check = `sh -c "command -v ${tool}"`
-        const proc = await this.subprocess(check, {}, { silent: true }).catch(
-            () => {
-                return { stdout: defaultPath }
-            },
-        )
+        const proc = await this.subprocess(check, {
+            env: defaultEnv,
+            silent: true,
+        }).catch(() => {
+            this.debug("command -v failed, using default path")
+            return { stdout: defaultPath }
+        })
         toolPath = proc.stdout ? proc.stdout.trim() : ""
         if (toolPath == tool) {
             // This means it's a function from the subshell profile
@@ -204,8 +378,9 @@ export default class Tool {
         }
         if (!fs.existsSync(toolPath)) {
             // This is a weird error case
-            this.error(`tool path does not exist: ${toolPath}`)
-            return defaultPath
+            this.debug(`tool root does not exist: ${toolPath}`)
+            this.debug(`using temp root: ${this.tempRoot}`)
+            return this.tempRoot
         }
 
         // Walk down symbolic links until we find the real path
@@ -231,6 +406,101 @@ export default class Tool {
         let err = `${toolEnv} misconfigured: ${toolPath} does not exist`
         this.error(err)
         throw new Error(err)
+    }
+
+    /**
+     * Subclasses should implement install to install our installer tools.
+     * @param {string} root - The root install directory for the tool.
+     */
+    async install(root) {
+        const err = "install not implemented"
+        this.debug(`attempting to install to ${root}`)
+        this.error(err)
+        throw new Error(err)
+    }
+
+    /**
+     * Downloads a url and optionally untars it
+     * @param  {string} url - The url to download.
+     * @param  {(string|{dest: string, strip: number})} tar - Path to extract
+     *         tarball to, or tar options.
+     * @returns {string} The path to the downloaded or extracted file.
+     */
+    async downloadTool(url, tar) {
+        // This is really only used to support the test environment...
+        if (!process.env.RUNNER_TEMP) {
+            this.debug(
+                "RUNNER_TEMP required by tool-cache, setting a sane default",
+            )
+            process.env.RUNNER_TEMP = this.defaults.RUNNER_TEMP
+        }
+        const download = await toolCache.downloadTool(url)
+        // Straightforward download to temp directory
+        if (!tar) return download
+
+        // Extract the downloaded tarball
+        tar = tar ?? {}
+        // Allow simple destination extract string
+        if (typeof tar === "string") tar = { dest: tar }
+        // Match default args for tool-cache
+        tar.args = tar.args ?? ["-xz"]
+        // Allow stripping directories
+        if (tar.strip) tar.args.push(`--strip-components=${tar.strip}`)
+        // Extract the tarball
+        const dir = await toolCache.extractTar(download, tar.dest, tar.args)
+        // Try to remove the downloaded file now that we have extracted it, but
+        // allow it to happen async and in the background, and we don't care if
+        // it fails
+        await fsPromises.rm(download, { recursive: true }).catch(() => {})
+        // Return the extracted directory
+        return dir
+    }
+
+    /**
+     * Build and return an environment object suitable for calling subprocesses
+     * consistently.
+     * @param {string} root - Root directory of this tool.
+     * @returns {Object} - Environment object for use in subprocesses.
+     */
+    async getEnv(root) {
+        root = root ?? (await this.findRoot())
+        const env = {}
+        let envPath = process.env.PATH ?? ""
+        const testPath = `:${envPath}:`
+        for (let dir of this.envPaths) {
+            dir = path.join(root, dir)
+            if (testPath.includes(`:${dir}:`)) continue
+            envPath = this.addPath(dir, envPath)
+        }
+        env.PATH = envPath
+        env[this.envVar] = root
+        return env
+    }
+
+    /**
+     * Export the environment settings for this tool to work correctly.
+     * @param {string} root - The root installer directory for our tool.
+     */
+    async setEnv(root) {
+        root = root ?? (await this.findRoot())
+        core.exportVariable(this.envVar, root)
+        for (const dir of this.envPaths) {
+            core.addPath(path.join(root, dir))
+        }
+    }
+
+    /**
+     * Modifies and de-duplicates PATH strings.
+     * @param {string} newPath - Path to add to exising PATH.
+     * @param {string} path - PATH string from environment.
+     * @returns {string} - New PATH value.
+     */
+    addPath(newPath, path = process.env.PATH) {
+        path = path.split(":").filter((p) => p != "")
+        path.push(newPath)
+        path = [...new Set(path)]
+        path = path.join(":")
+        return path
     }
 
     // register adds name : subclass to the tool registry

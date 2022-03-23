@@ -1,4 +1,4 @@
-import path from "path"
+import assert from "assert"
 
 import core from "@actions/core"
 
@@ -6,6 +6,9 @@ import Tool from "./tool.js"
 
 export default class Terraform extends Tool {
     static tool = "terraform"
+    static envVar = "TFENV_ROOT"
+    static installer = "tfenv"
+
     constructor() {
         super(Terraform.tool)
     }
@@ -15,14 +18,11 @@ export default class Terraform extends Tool {
             desiredVersion,
             ".terraform-version",
         )
-        if (!this.haveVersion(checkVersion)) return
-
-        // Construct the execution environment for tfenv
-        this.env = await this.makeEnv()
+        if (!(await this.haveVersion(checkVersion))) return
 
         // Check if tfenv exists and can be run, and capture the version info while
         // we're at it
-        await this.version("tfenv --version")
+        await this.findInstaller()
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
@@ -36,26 +36,30 @@ export default class Terraform extends Tool {
         )
 
         // Sanity check the terraform command works, and output its version
-        await this.validateVersion("terraform --version", checkVersion)
+        await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured terraform.
         core.setOutput(Terraform.tool, checkVersion)
         this.info("terraform success!")
     }
 
-    async makeEnv() {
-        let env = {}
-        const tfenvRoot = await this.findRoot("tfenv")
-        env.TFENV_ROOT = tfenvRoot
+    /**
+     * Download and configures tfenv.
+     *
+     * @param  {string} root - Directory to install tfenv into (TFENV_ROOT).
+     * @return {string} The value of TFENV_ROOT.
+     */
+    async install(root) {
+        assert(root, "root is required")
+        const gh = `https://${
+            process.env.GITHUB_SERVER ?? "github.com"
+        }/tfutils`
+        const url = `${gh}/tfenv/archive/refs/heads/master.tar.gz`
 
-        // Add it to our path explicitly since the tfenv command is not likely
-        // on the default PATH
-        const tfenvBin = path.join(tfenvRoot, "bin")
-        this.debug(`Adding ${tfenvBin} to PATH`)
-        core.exportVariable("TFENV_ROOT", env.TFENV_ROOT)
-        core.addPath(tfenvBin)
+        root = await this.downloadTool(url, { dest: root, strip: 1 })
+        this.info(`Downloaded tfenv to ${root}`)
 
-        return env
+        return root
     }
 }
 

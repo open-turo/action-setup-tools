@@ -13,13 +13,25 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Runs unit tests
-  test:
-    name: Test
+  fast:
+    name: Test / Fast
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-tools
+      - uses: open-turo/actions-gha/test@v1
+        with:
+          checkout-repo: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TEST_FAST: "1"
+
+  # Runs unit tests
+  test:
+    name: Test
+    needs: [lint, fast]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - uses: open-turo/actions-gha/test@v1
         with:
           checkout-repo: false
@@ -27,7 +39,8 @@ jobs:
 
   # Build and run the action from this repo to test full functionality
   action:
-    name: Test action with inputs
+    name: Test / Inputs
+    needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -37,10 +50,43 @@ jobs:
 
   # Build and run the action from this repo to test full functionality
   action-versions:
-    name: Test action with version files
+    name: Test / Version files
+    needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/action-test
         with:
           use-versions: true
+
+  action-asdf:
+    name: Test / Pre-installed
+    needs: [lint, fast]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          # Create .tool-versions for asdf
+          {
+          echo "golang 1.17.6"
+          echo "java temurin-17.0.2+8"
+          echo "nodejs 16.13.2"
+          echo "python 3.10.2"
+          echo "terraform 1.1.5"
+          } > .tool-versions
+      - uses: asdf-vm/actions/install@v1
+      - run: |
+          # Test versions
+          go version | grep "1.17.6"
+          java -version 2>&1 | grep "17.0.2"
+          node --version | grep "16.13.2"
+          python --version || grep "3.10.2"
+          terraform --version | grep "1.1.5"
+      - uses: ./.github/actions/action-test
+      - run: |
+          # Test versions again
+          go version | grep "1.17.6"
+          java -version 2>&1 | grep "17.0.2"
+          node --version | grep "16.13.2"
+          python --version || grep "3.10.2"
+          terraform --version | grep "1.1.5"

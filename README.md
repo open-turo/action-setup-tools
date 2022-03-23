@@ -1,155 +1,176 @@
-# action-setup-tools
+# actionlint
 
-<!-- TODO: Add back badges here when they're not all broken -->
+[![CI Badge][]][ci] [![API Document][api-badge]][apidoc]
 
-Provisions supported tools for workflow steps in self-hosted runners. This
-relies on the agent having supported tooling installed. This action works with
-the following tooling:
+[actionlint][repo] is a static checker for GitHub Actions workflow files. [Try
+it online!][playground]
 
--   [goenv](https://github.com/syndbg/goenv)
--   [nodenv](https://github.com/nodenv/nodenv)
--   [pyenv](https://github.com/pyenv/pyenv)
--   [sdkman](https://sdkman.io/)
--   [tfenv](https://github.com/tfutils/tfenv)
+Features:
 
-Attempts to use configuration provided in the directory structure for each tool,
-but this can be overridden with additional configuration in the action.
+-   **Syntax check for workflow files** to check unexpected or missing keys
+    following [workflow syntax][syntax-doc]
+-   **Strong type check for `${{ }}` expressions** to catch several semantic
+    errors like access to not existing property, type mismatches, ...
+-   **Actions usage check** to check that inputs at `with:` and outputs in
+    `steps.{id}.outputs` are correct
+-   **[shellcheck][] and [pyflakes][] integrations** for scripts at `run:`
+-   **Security checks**; [script injection][script-injection-doc] by untrusted
+    inputs, hard-coded credentials
+-   **Other several useful checks**; [glob syntax][filter-pattern-doc]
+    validation, dependencies check for `needs:`, runner label validation, cron
+    syntax validation, ...
 
-## Usage
+See [the document](docs/checks.md) for full list of checks done by actionlint.
 
-This section describes usage of the action.
+<img src="https://github.com/rhysd/ss/blob/master/actionlint/main.gif?raw=true" alt="actionlint reports 7 errors" width="806" height="492"/>
 
-### Basic
-
-The action in its basic usage relies on the checked out repository or workspace
-to have existing configuration files for each tool.
-
-It takes no inputs and reads these files, such as `.node-version`, to configure
-the tooling correctly for the workflow.
-
-```yaml
-name: CI
-on:
-    push:
-        branches:
-            - "main"
-    pull_request:
-        branches:
-            - "main"
-jobs:
-    my-job:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v2
-            - name: Setup tools
-              uses: open-turo/action-setup-tools@v1
-            - name: Output current environment
-              run: env | sort
-```
-
-### Supported Tools
-
-The following tool platforms are supported for configuration but not
-installation. If you are using a self-hosted runner you must pre-install these,
-or if you're using a hosted runner they must be installed separately.
-
-#### golang
-
-By default the action will look for a `.go-version` file in the current
-directory. If present it will setup the Golang environment to use that version
-of `go`, installing the specified version if necessary.
-
-#### java
-
-By default the action will look for a `.sdkmanrc` file in the current directory.
-If present and if specifies a java version it will setup the sdkman environment
-to use that version of java, installing it if necessary. More information about
-`sdkman` can be found [here](https://sdkman.io/). Note that the java version
-identifier is an sdkman version identifier that includes a vendor identifier
-after a dash to indicate which vendor supplies the identified version.
-
-#### node
-
-By default the action will look for a `.node-version` file in the current
-directory. If present it will setup the node environment to use that version of
-node, installing the specified version if necessary.
-
-#### python
-
-By default the action will look for a `.python-version` file in the current
-directory. If present it will setup the Python environment to use that version
-of python, installing the specified version if necessary.
-
-#### terraform
-
-By default the action will look for a `.terraform-version` file in the current
-directory. If present it will setup the environment to use that version of
-`terraform`, installing the specified version if necessary.
-
-### Advanced usage
-
-This repository exports a sub-action, `open-turo/action-setup-tools/versions@v1`
-which allows you to specify the exact version of the tools that you wish to use,
-even if they do not have configuration files present in the repository root or
-workspace.
-
-This is not the recommended usage of this action since it can produce
-differentiated results in CI or in your local environment.
+**Example of broken workflow:**
 
 ```yaml
-name: CI
 on:
     push:
-        branches:
-            - "main"
-    pull_request:
-        branches:
-            - "main"
+        branch: main
+        tags:
+            - 'v\d+'
 jobs:
-    my-job:
-        runs-on: ubuntu-latest
+    test:
+        strategy:
+            matrix:
+                os: [macos-latest, linux-latest]
+        runs-on: ${{ matrix.os }}
         steps:
-            - name: Checkout
-              uses: actions/checkout@v2
-            - name: Setup tools
-              uses: open-turo/action-setup-tools/versions@v1
+            - run:
+                  echo "Checking commit '${{ github.event.head_commit.message
+                  }}'"
+            - uses: actions/checkout@v2
+            - uses: actions/setup-node@v2
               with:
-                  go: 1.17.6
-                  java: 17.0.2-tem
-                  node: 16.13.2
-                  python: 3.10.2
-                  terraform: 1.1.5
-            - name: Output current environment
-              run: env | sort
+                  node_version: 16.x
+            - uses: actions/cache@v2
+              with:
+                  path: ~/.npm
+                  key:
+                      ${{ matrix.platform }}-node-${{
+                      hashFiles('**/package-lock.json') }}
+              if: ${{ github.repository.permissions.admin == true }}
+            - run: npm install && npm test
 ```
 
-#### Inputs
+**actionlint reports 7 errors:**
 
-<!-- AUTO-DOC-INPUT:START - Do not remove or modify this section -->
+```
+test.yaml:3:5: unexpected key "branch" for "push" section. expected one of "branches", "branches-ignore", "paths", "paths-ignore", "tags", "tags-ignore", "types", "workflows" [syntax-check]
+  |
+3 |     branch: main
+  |     ^~~~~~~
+test.yaml:5:11: character '\' is invalid for branch and tag names. only special characters [, ?, +, *, \ ! can be escaped with \. see `man git-check-ref-format` for more details. note that regular expression is unavailable. note: filter pattern syntax is explained at https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#filter-pattern-cheat-sheet [glob]
+  |
+5 |       - 'v\d+'
+  |           ^~~~
+test.yaml:10:28: label "linux-latest" is unknown. available labels are "windows-latest", "windows-2022", "windows-2019", "windows-2016", "ubuntu-latest", "ubuntu-20.04", "ubuntu-18.04", "macos-latest", "macos-11", "macos-11.0", "macos-10.15", "self-hosted", "x64", "arm", "arm64", "linux", "macos", "windows". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file [runner-label]
+   |
+10 |         os: [macos-latest, linux-latest]
+   |                            ^~~~~~~~~~~~~
+test.yaml:13:41: "github.event.head_commit.message" is potentially untrusted. avoid using it directly in inline scripts. instead, pass it through an environment variable. see https://docs.github.com/en/actions/learn-github-actions/security-hardening-for-github-actions for more details [expression]
+   |
+13 |       - run: echo "Checking commit '${{ github.event.head_commit.message }}'"
+   |                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test.yaml:17:11: input "node_version" is not defined in action "actions/setup-node@v2". available inputs are "always-auth", "architecture", "cache", "cache-dependency-path", "check-latest", "node-version", "registry-url", "scope", "token", "version" [action]
+   |
+17 |           node_version: 16.x
+   |           ^~~~~~~~~~~~~
+test.yaml:21:20: property "platform" is not defined in object type {os: string} [expression]
+   |
+21 |           key: ${{ matrix.platform }}-node-${{ hashFiles('**/package-lock.json') }}
+   |                    ^~~~~~~~~~~~~~~
+test.yaml:22:17: receiver of object dereference "permissions" must be type of object but got "string" [expression]
+   |
+22 |         if: ${{ github.repository.permissions.admin == true }}
+   |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
 
-| INPUT     | TYPE   | REQUIRED | DEFAULT | DESCRIPTION                      |
-| --------- | ------ | -------- | ------- | -------------------------------- |
-| go        | string | false    |         | The Go version to use<br>        |
-| java      | string | false    |         | The Java version to use<br>      |
-| kotlin    | string | false    |         | The Kotlin version to use<br>    |
-| node      | string | false    |         | The Node.js version to use<br>   |
-| python    | string | false    |         | The Python version to use<br>    |
-| terraform | string | false    |         | The Terraform version to use<br> |
+## Why?
 
-<!-- AUTO-DOC-INPUT:END -->
+-   **Running a workflow is time consuming.** You need to push the changes and
+    wait until the workflow runs on GitHub even if it contains some trivial
+    mistakes. [act][] is useful to debug the workflow locally. But it is not
+    suitable for CI and still time consuming when your workflow gets larger.
+-   **Checks of workflow files by GitHub are very loose.** It reports no error
+    even if unexpected keys are in mappings (meant that some typos in keys). And
+    also it reports no error when accessing to property which is actually not
+    existing. For example `matrix.foo` when no `foo` is defined in `matrix:`
+    section, it is evaluated to `null` and causes no error.
+-   **Some mistakes silently break a workflow.** Most common case I saw is
+    specifying missing property to cache key. In the case cache silently does
+    not work properly but a workflow itself runs without error. So you might not
+    notice the mistake forever.
 
-#### Outputs
+## Quick start
 
-<!-- AUTO-DOC-OUTPUT:START - Do not remove or modify this section -->
+Install `actionlint` command by downloading [the released binary][releases] or
+by Homebrew or by `go install`. See [the installation document](docs/install.md)
+for more details like how to manage the command with Homebrew or run via Docker
+container.
 
-| OUTPUT    | TYPE   | DESCRIPTION                |
-| --------- | ------ | -------------------------- |
-| go        | string | The Go version used        |
-| java      | string | The Java version used      |
-| kotlin    | string | The Kotlin version used    |
-| node      | string | The Node.js version used   |
-| python    | string | The Python version used    |
-| terraform | string | The Terraform version used |
+```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@latest
+```
 
-<!-- AUTO-DOC-OUTPUT:END -->
+Basically all you need to do is run the `actionlint` command in your repository.
+actionlint automatically detects workflows and checks errors. actionlint focuses
+on finding out mistakes. It tries to catch errors as much as possible and make
+false positives as minimal as possible.
+
+```sh
+actionlint
+```
+
+Another option to try actionlint is [the online playground][playground]. Your
+browser can run actionlint through WebAssembly.
+
+See [the usage document](docs/usage.md) for more details.
+
+## Documents
+
+-   [Checks](docs/checks.md): Full list of all checks done by actionlint with
+    example inputs, outputs, and playground links.
+-   [Installation](docs/install.md): Installation instructions. Prebuilt
+    binaries, Homebrew package, a Docker image, building from source, a download
+    script (for CI) are available.
+-   [Usage](docs/usage.md): How to use `actionlint` command locally or on GitHub
+    Actions, the online playground, an official Docker image, and integrations
+    with reviewdog, Problem Matchers, super-linter, pre-commit.
+-   [Configuration](docs/config.md): How to configure actionlint behavior.
+    Currently only labels of self-hosted runners can be configured.
+-   [Go API](docs/api.md): How to use actionlint as Go library.
+-   [References](docs/reference.md): Links to resources.
+
+## Bug reporting
+
+When you see some bugs or false positives, it is helpful to [file a new
+issue][issue-form] with a minimal example of input. Giving me some feedbacks
+like feature requests or ideas of additional checks is also welcome.
+
+## License
+
+actionlint is distributed under [the MIT license](./LICENSE.txt).
+
+[ci badge]:
+    https://github.com/rhysd/actionlint/workflows/CI/badge.svg?branch=main&event=push
+[ci]:
+    https://github.com/rhysd/actionlint/actions?query=workflow%3ACI+branch%3Amain
+[api-badge]: https://pkg.go.dev/badge/github.com/rhysd/actionlint.svg
+[apidoc]: https://pkg.go.dev/github.com/rhysd/actionlint
+[repo]: https://github.com/rhysd/actionlint
+[playground]: https://rhysd.github.io/actionlint/
+[shellcheck]: https://github.com/koalaman/shellcheck
+[pyflakes]: https://github.com/PyCQA/pyflakes
+[act]: https://github.com/nektos/act
+[syntax-doc]:
+    https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
+[filter-pattern-doc]:
+    https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#filter-pattern-cheat-sheet
+[script-injection-doc]:
+    https://docs.github.com/en/actions/learn-github-actions/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+[issue-form]: https://github.com/rhysd/actionlint/issues/new
+[releases]: https://github.com/rhysd/actionlint/releases
