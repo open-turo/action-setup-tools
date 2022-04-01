@@ -60,6 +60,18 @@ export async function runActionExpectError(name, env) {
 }
 
 /**
+ * Return an object with IGNORE_INSTALLED set based on the TEST_PRE_INSTALL
+ * environment variable to allow testing against pre-installed versions.
+ */
+export function ignoreInstalled() {
+    if (process.env.TEST_PRE_INSTALL) {
+        return {}
+    }
+    process.env.IGNORE_INSTALLED = "true"
+    return { IGNORE_INSTALLED: "true" }
+}
+
+/**
  * Removes any path containing *name* from the PATH parts.
  *
  * @param {string} name - Name to search for in the PATH parts.

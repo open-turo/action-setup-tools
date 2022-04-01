@@ -8,6 +8,7 @@ import {
     cleanPath,
     Cleaner,
     Mute,
+    ignoreInstalled,
 } from "./testutil"
 
 Mute.all()
@@ -23,9 +24,11 @@ describe("runAction java", () => {
     it.slow = process.env.TEST_FAST ? it.skip : it
 
     it.slow("works", async () => {
-        return runAction("index", {
+        const env = {
             INPUT_JAVA: sdkmanVersionIdentifier,
-        }).then((proc) => {
+            ...ignoreInstalled(),
+        }
+        return runAction("index", env).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`java -version: ${desiredVersion}`)
             expect(proc.stdout).toContain("java success!")
@@ -34,10 +37,11 @@ describe("runAction java", () => {
     })
 
     it("fails with bad SDKMAN_DIR", () => {
-        let env = {
+        const env = {
             INPUT_JAVA: sdkmanVersionIdentifier,
             SDKMAN_DIR: "/tmp/.sdkman",
             PATH: cleanPath("sdkman"),
+            ...ignoreInstalled(),
         }
         cleaner.root = env.SDKMAN_DIR
         return expect(
@@ -54,6 +58,7 @@ describe("Java", () => {
     afterEach(cleaner.clean)
 
     it("works when java isn't wanted", async () => {
+        ignoreInstalled()
         const tool = new Java()
         cleaner.root = await tool.findRoot()
         return tool.setup()
@@ -75,6 +80,7 @@ describe("Java", () => {
     })
 
     it("works and sets a sensible JAVA_HOME", async () => {
+        ignoreInstalled()
         const tool = new Java()
         cleaner.root = await tool.findRoot()
         return tool.setup("8.0.282-librca").then(() => {
@@ -226,17 +232,21 @@ describe("getJavaVersion", () => {
     })
 })
 
-describe("parseJavaVersionString", () => {
+describe("versionParser", () => {
     const versionString =
-        `` +
         `openjdk version "1.8.0_282"\\n` +
         `OpenJDK Runtime Environment (build 1.8.0_282-b08)\\n` +
         `OpenJDK 64-Bit Server VM (build 25.282-b08, mixed mode)`
-    const expected = "8.0.282"
 
     it("handles java 8/1.8 nonsense output", () => {
         const tool = new Java()
-        const version = tool.parseJavaVersionString(expected, versionString)
+        const version = tool.versionParser(versionString)
         expect(version[0]).toBe("8.0.282")
+    })
+
+    it("handles java 11+ versions", () => {
+        const tool = new Java()
+        const version = tool.versionParser(`openjdk version "17.0.2_temurin"`)
+        expect(version[0]).toBe("17.0.2")
     })
 })

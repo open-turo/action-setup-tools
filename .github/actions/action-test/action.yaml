@@ -36,8 +36,8 @@ runs:
     - shell: bash
       run: |
         # Check versions
-        go version | grep "1.17.6"
-        java -version 2>&1 | grep "17.0.2"
-        node --version | grep "16.13.2"
-        python --version || grep "3.10.2"
-        terraform --version | grep "1.1.5"
+        go version | grep "1.17.6" || echo "::error::go version mismatch"
+        java -version 2>&1 | grep "17.0.2" || echo "::error::java version mismatch"
+        node --version | grep "16.13.2" || echo "::error::node version mismatch"
+        python --version || grep "3.10.2" || echo "::error::python version mismatch"
+        terraform --version | grep "1.1.5" || echo "::error::terraform version mismatch"

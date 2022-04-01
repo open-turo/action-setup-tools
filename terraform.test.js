@@ -6,6 +6,7 @@ import {
     cleanPath,
     Cleaner,
     Mute,
+    ignoreInstalled,
 } from "./testutil"
 
 Mute.all()
@@ -16,7 +17,11 @@ describe("runAction terraform", () => {
 
     it("works with terraform", async () => {
         const version = "1.1.2"
-        return runAction("index", { INPUT_TERRAFORM: version }).then((proc) => {
+        const env = {
+            INPUT_TERRAFORM: version,
+            ...ignoreInstalled(),
+        }
+        return runAction("index", env).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`terraform --version: ${version}`)
             expect(proc.stdout).toContain("terraform success!")
@@ -24,10 +29,11 @@ describe("runAction terraform", () => {
     })
 
     it("fails with bad TFENV_ROOT", () => {
-        let env = {
+        const env = {
             INPUT_TERRAFORM: "1.1.2",
             TFENV_ROOT: "/tmp/.tfenv",
             PATH: cleanPath("tfenv"),
+            ...ignoreInstalled(),
         }
         return expect(
             runActionExpectError("index", env).catch((err) => {
@@ -63,6 +69,22 @@ describe("findRoot", () => {
 describe("setup", () => {
     const cleaner = new Cleaner(Terraform, "tfenv")
     afterEach(cleaner.clean)
+
+    it("works to install and find itself", async () => {
+        const tool = new Terraform()
+        const check = await tool
+            .subprocessShell("terraform --version")
+            .catch((err) => err)
+        if (check?.stdout?.includes(" 1.1.")) {
+            // This means we have terraform on the PATH and it won't install
+            // tfenv by default
+            return // success-ish
+        }
+
+        await tool.setup("1.1.2")
+        const proc = await tool.subprocessShell("tfenv --version")
+        expect(proc.stdout).toEqual("tfenv 2.2.3\n")
+    })
 
     it("works with an override version", () => {
         return new Terraform().setup("1.1.2")

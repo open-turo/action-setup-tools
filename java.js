@@ -47,12 +47,12 @@ export default class Java extends Tool {
         // form "java 11.0.2-open is already installed". sdk install does not pick up the
         // environment variable JAVA_VERSION unlike tfenv, so we specify it here as an
         // argument explicitly, if it's set
-        await this.subprocess(`sdk install java ${checkVersion}`).catch(
+        await this.subprocessShell(`sdk install java ${checkVersion}`).catch(
             this.logAndExit(`failed to install: ${checkVersion}`),
         )
 
         // Set the "current" default Java version to the desired version
-        await this.subprocess(`sdk default java ${checkVersion}`).catch(
+        await this.subprocessShell(`sdk default java ${checkVersion}`).catch(
             this.logAndExit(`failed to set default: ${checkVersion}`),
         )
 
@@ -100,7 +100,7 @@ export default class Java extends Tool {
         await fsPromises.rmdir(root)
 
         // Run the installer script
-        await this.subprocess(`bash ${install}`, { env: env })
+        await this.subprocessShell(`bash ${install}`, { env: env })
 
         // Shim the sdk cli function and add to the path
         this.shimSdk(root)
@@ -190,7 +190,13 @@ sdk "$@"
     versionParser(text) {
         // Default case for 11.x or 17.x it should match and we're ok
         let versions = super.versionParser(text)
+        this.debug(`versionParser: ${versions}`)
         if (!versions.length) return versions
+
+        // Fast check for 1.x versions that don't parse right
+        const v = /^\d+\.\d+\.\d+/ // Check against X.Y.Z
+        const v1x = /^1\.\d+\.\d+/ // Check against 1.Y.Z
+        if (v.test(versions[0]) && !v1x.test(versions[0])) return versions
 
         // This parsing is to match the version string for 1.8.0_282 (or
         // similar) which is what the java binary puts out, however `sdkman`
@@ -198,7 +204,8 @@ sdk "$@"
         // against, so we're going to hard parse against X.Y.Z_W to rewrite it
         // to Y.Z.W
         const parser = /1\.([0-9]+\.[0-9]+_[0-9]+)/
-        const matched = parser.exec(versions[0])
+        const matched = parser.exec(text)
+        this.debug(`versionParser: matched 1.x version: ${matched}`)
         if (!matched) return versions
         return [matched[1].replace("_", ".")]
     }

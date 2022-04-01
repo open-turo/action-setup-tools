@@ -8571,17 +8571,15 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("util");
 
 /* unused harmony export default */
 /* harmony import */ var assert__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(9491);
-/* harmony import */ var _actions_io__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(7436);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(2186);
-/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(4067);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(2186);
+/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(4067);
 
 
 
 
 
 
-
-class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_3__/* ["default"] */ .Z {
+class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
     static tool = "go"
     static toolVersion = "go version"
     static envVar = "GOENV_ROOT"
@@ -8606,14 +8604,16 @@ class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_3__/* ["default"] */ .Z {
         // we're at it, should be pre-installed on self-hosted runners.
         await this.findInstaller()
 
-        if (!_actions_io__WEBPACK_IMPORTED_MODULE_1__.which("go")) {
+        /*
+        if (!io.which("go")) {
             // This has to be invoked otherwise it just returns a function
             this.logAndExit(`${this.envVar} misconfigured`)()
         }
+        */
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            _actions_core__WEBPACK_IMPORTED_MODULE_2__.exportVariable("GOENV_VERSION", checkVersion)
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("GOENV_VERSION", checkVersion)
         }
 
         // using -s option to skip the install and become a no-op if the
@@ -8623,21 +8623,21 @@ class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_3__/* ["default"] */ .Z {
         // unlike tfenv, so we specify it here as an argument explicitly, if it's set
         if (isVersionOverridden) installCommand += ` ${checkVersion}`
 
-        await this.subprocess(installCommand).catch(
+        await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install golang version ${checkVersion}`),
         )
 
-        // Sanity check that the go command works and its reported version matches what we have
-        // requested to be in place.
+        // Sanity check that the go command works and its reported version
+        // matches what we have requested to be in place.
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured golang.
-        _actions_core__WEBPACK_IMPORTED_MODULE_2__.setOutput(Golang.tool, checkVersion)
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput(Golang.tool, checkVersion)
         this.info("golang success!")
     }
 
     async setEnv() {
-        _actions_core__WEBPACK_IMPORTED_MODULE_2__.exportVariable("GOENV_SHELL", "bash")
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("GOENV_SHELL", "bash")
         return super.setEnv()
     }
 
@@ -8814,12 +8814,12 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         // form "java 11.0.2-open is already installed". sdk install does not pick up the
         // environment variable JAVA_VERSION unlike tfenv, so we specify it here as an
         // argument explicitly, if it's set
-        await this.subprocess(`sdk install java ${checkVersion}`).catch(
+        await this.subprocessShell(`sdk install java ${checkVersion}`).catch(
             this.logAndExit(`failed to install: ${checkVersion}`),
         )
 
         // Set the "current" default Java version to the desired version
-        await this.subprocess(`sdk default java ${checkVersion}`).catch(
+        await this.subprocessShell(`sdk default java ${checkVersion}`).catch(
             this.logAndExit(`failed to set default: ${checkVersion}`),
         )
 
@@ -8867,7 +8867,7 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         await fs_promises__WEBPACK_IMPORTED_MODULE_4__.rmdir(root)
 
         // Run the installer script
-        await this.subprocess(`bash ${install}`, { env: env })
+        await this.subprocessShell(`bash ${install}`, { env: env })
 
         // Shim the sdk cli function and add to the path
         this.shimSdk(root)
@@ -8957,7 +8957,13 @@ sdk "$@"
     versionParser(text) {
         // Default case for 11.x or 17.x it should match and we're ok
         let versions = super.versionParser(text)
+        this.debug(`versionParser: ${versions}`)
         if (!versions.length) return versions
+
+        // Fast check for 1.x versions that don't parse right
+        const v = /^\d+\.\d+\.\d+/ // Check against X.Y.Z
+        const v1x = /^1\.\d+\.\d+/ // Check against 1.Y.Z
+        if (v.test(versions[0]) && !v1x.test(versions[0])) return versions
 
         // This parsing is to match the version string for 1.8.0_282 (or
         // similar) which is what the java binary puts out, however `sdkman`
@@ -8965,7 +8971,8 @@ sdk "$@"
         // against, so we're going to hard parse against X.Y.Z_W to rewrite it
         // to Y.Z.W
         const parser = /1\.([0-9]+\.[0-9]+_[0-9]+)/
-        const matched = parser.exec(versions[0])
+        const matched = parser.exec(text)
+        this.debug(`versionParser: matched 1.x version: ${matched}`)
         if (!matched) return versions
         return [matched[1].replace("_", ".")]
     }
@@ -9079,7 +9086,7 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         if (isVersionOverridden)
             installCommand = `${installCommand} ${checkVersion}`
 
-        await this.subprocess(installCommand).catch(
+        await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install node version ${checkVersion}`),
         )
 
@@ -9144,7 +9151,7 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
 
         // Create environment for running node-doctor
         await this.setEnv(root)
-        await this.subprocess(`bash ${doctor}`)
+        await this.subprocessShell(`bash ${doctor}`)
 
         // Asynchronously clean up the downloaded doctor script
         fs_promises__WEBPACK_IMPORTED_MODULE_2__.rm(doctor, { recursive: true }).catch(() => {})
@@ -9235,7 +9242,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         // unlike tfenv, so we specify it here as an argument explicitly, if it's set
         if (isVersionOverridden) installCommand += ` ${checkVersion}`
 
-        await this.subprocess(installCommand).catch(
+        await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install python version ${checkVersion}`),
         )
 
@@ -9319,7 +9326,7 @@ class Terraform extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .
 
         // Make sure we have the desired terraform version installed (may be
         // pre-installed on self-hosted runners)
-        await this.subprocess("tfenv install").catch(
+        await this.subprocessShell("tfenv install").catch(
             this.logAndExit("install failed"),
         )
 
@@ -9388,6 +9395,12 @@ Terraform.register()
 
 
 
+
+// Only create the silly logger once so it's a fast passthrough that the
+// runtime can optimize away
+const silly = process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING
+    ? (...msg) => _actions_core__WEBPACK_IMPORTED_MODULE_7__.debug(`SILLY ${msg.join(" ")}`)
+    : () => {}
 
 // Superclass for all supported tools
 class Tool {
@@ -9468,6 +9481,7 @@ class Tool {
     // Second value returned indicates whether or not the version returned has overridden
     // the version from the repositories tool version file.
     getVersion(actionDesiredVersion, repoToolVersionFilename) {
+        this.debug(`getVersion: ${repoToolVersionFilename}`)
         // Check if we have any version passed in to the action (can be null/empty string)
         if (actionDesiredVersion) return [actionDesiredVersion, true]
 
@@ -9506,7 +9520,8 @@ class Tool {
      * @returns {string} - The version string that was found.
      */
     async version(cmd, soft) {
-        let check = this.subprocess(cmd, { silent: true })
+        silly(`version cmd: ${cmd}`)
+        let check = this.subprocessShell(cmd, { silent: true })
             .then((proc) => {
                 if (proc.stdout) {
                     let stdoutVersions = this.versionParser(proc.stdout)
@@ -9526,18 +9541,27 @@ class Tool {
                 return versions[0]
             })
 
+        // This is a hard check and will fail the action
         if (!soft) {
-            check = check.catch(
-                this.logAndExit(`failed to get version: ${cmd}`),
-            )
+            return check.catch(this.logAndExit(`failed to get version: ${cmd}`))
         }
-        return check
+
+        return check.catch((err) => {
+            silly(`version error: ${err}`)
+            // Return a soft/empty version here
+            if (/Unable to locate executable file:/.test(err.message)) {
+                return null
+            }
+            // Otherwise re-throw
+            throw err
+        })
     }
 
     // validateVersion returns the found current version from a subprocess which
     // is compared against the expected value given
     async validateVersion(expected) {
         const command = this.toolVersion
+        this.debug(`validateVersion: ${expected}: ${command}`)
         let version = await this.version(command)
         if (expected != version) {
             this.debug(`found command ${_actions_io__WEBPACK_IMPORTED_MODULE_6__.which(command.split(" ")[0])}`)
@@ -9565,11 +9589,27 @@ class Tool {
             this.info("    not checking for installed tools")
             return true
         }
-        const found = await this.version(this.toolVersion, true)
-        this.info("    none found")
+        this.debug("checking for installed version")
+        const found = await this.version(this.toolVersion, true).catch(
+            (err) => {
+                if (
+                    /^subprocess exited with non-zero code:/.test(err.message)
+                ) {
+                    // This can happen if there's no default version, so we
+                    // don't want to hard error here
+                    return null
+                }
+                throw err
+            },
+        )
+
+        // this.debug(`found version: ${found}`)
         if (!found) return true
 
-        const semantic = `^${version.replace(/\.d+$/, ".x")}`
+        // Just export the environment blindly if we have a version
+        this.setEnv()
+
+        const semantic = `^${version.replace(/\.\d+$/, ".x")}`
         const ok = semver__WEBPACK_IMPORTED_MODULE_10__.satisfies(found, semantic)
         if (!ok) {
             this.info(
@@ -9586,8 +9626,12 @@ class Tool {
         return false
     }
 
-    // subprocess invokes `cmd` with environment `env` and resolves the promise with
-    // an object containing the output and any error that was caught
+    /**
+     * Invokes `cmd` with environment `env` and resolves the promise with
+     * an object containing the output and any error that was caught
+     * @param {string} cmd - Command to run.
+     * @param {Object} opts - Subprocess options.
+     */
     async subprocess(cmd, opts = { silent: false }) {
         let proc = {
             stdout: "",
@@ -9596,16 +9640,26 @@ class Tool {
             exitCode: 0,
         }
 
+        silly(`subprocess env exists?: ${!!opts.env}`)
         // Always merge the passed environment on top of the process environment so
         // we don't lose execution context
-        opts.env = opts.env ?? { ...process__WEBPACK_IMPORTED_MODULE_4__.env, ...(await this.getEnv()) }
+        // opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
+        // opts.env = opts.env ?? { ...process.env }
+
+        // this.debug("subprocess got env")
 
         // This lets us inspect the process output, otherwise an error is thrown
         // and it is lost
         opts.ignoreReturnCode = opts.ignoreReturnCode ?? true
 
+        // this.debug(`subprocess cmd: ${cmd}`)
+        // let args = shellQuote.parse(cmd)
+        let args = this.tokenizeArgs(cmd)
+        // this.debug(`subprocess args: ${args}`)
+        cmd = args.shift()
+
         return new Promise((resolve, reject) => {
-            ;(0,_actions_exec__WEBPACK_IMPORTED_MODULE_9__.getExecOutput)(cmd, [], opts)
+            ;(0,_actions_exec__WEBPACK_IMPORTED_MODULE_9__.getExecOutput)(cmd, args, opts)
                 .then((result) => {
                     if (result.exitCode > 0) {
                         let err = new Error(
@@ -9614,6 +9668,7 @@ class Tool {
                         err.exitCode = result.exitCode
                         err.stdout = result.stdout
                         err.stderr = result.stderr
+                        err.env = { ...opts.env }
                         reject(err)
                         return
                     }
@@ -9621,16 +9676,183 @@ class Tool {
                     proc.exitCode = result.exitCode
                     proc.stdout = result.stdout
                     proc.stderr = result.stderr
+                    proc.env = { ...opts.env }
                     resolve(proc)
                 })
                 .catch((err) => {
                     if (/^Unable to locate executable file/.test(err.message)) {
-                        // this.debug("PATH = ", opts.env.PATH.split(":"))
-                        this.debug(`'${cmd.split()[0]}' not on PATH`)
+                        this.debug(`'${cmd.split(" ")[0]}' not on PATH`)
+                        silly(`PATH = ${opts.env.PATH}`)
                     }
                     reject(err)
                 })
         })
+    }
+
+    /**
+     * Run `cmd` with options `opts` in a bash subshell to ensure the PATH
+     * environment is set.
+     * @param {String} cmd - Command to run.
+     * @param {Object} opts - Subprocess options.
+     * @returns
+     */
+    async subprocessShell(cmd, opts) {
+        opts = opts ?? {}
+        const escaped = cmd.replace(/"/g, '\\"')
+        const cmdName = this.tokenizeArgs(cmd).shift()
+        const shell = `bash -c "` + escaped + `"`
+        const name = opts.check ? "\tcheckExecutableExists" : "subprocessShell"
+
+        silly(`${name} running: ${cmd}`)
+
+        silly(`${name} env exists? ${!!opts.env}`)
+        opts.env = opts.env ?? { ...process__WEBPACK_IMPORTED_MODULE_4__.env, ...(await this.getEnv()) }
+
+        if (process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING) {
+            let paths = opts.env.PATH.split(":").filter((i) =>
+                i.includes(this.installer),
+            )
+            if (!paths) silly(`${name} no matching PATH`)
+            else silly(`${name} matching PATH=`)
+            paths.forEach((p) => silly(`${name} \t${p}`))
+        }
+
+        let cmdExists
+        if (!opts.check) {
+            silly(`subprocessShell: ${shell}`)
+            const checkOpts = { ...opts, silent: true, check: true }
+            cmdExists = await this.subprocessShell(
+                `command -v ${cmdName}`,
+                checkOpts,
+            )
+                .then((proc) => {
+                    silly(`\tcommand exists: ${proc.stdout.trim()}`)
+                    return true
+                })
+                .catch(() => {
+                    silly(`\tcommand does not exist: ${cmdName}}`)
+                    return false
+                })
+        } else {
+            silly(`${name} checking: ${shell}`)
+        }
+        delete opts.check
+
+        const proc = await this.subprocess(shell, opts).catch((err) => {
+            silly(`${name} caught error: ${err}`)
+            if (
+                /^subprocess exited with non-zero code: bash/.test(err.message)
+            ) {
+                if (cmdExists) {
+                    silly(`${name} command exists: ${cmd}, but failed`)
+                    silly(`\t${err.stderr}`)
+                    err.message = `subprocess exited with non-zero code: ${cmd}`
+                    // this.debug(`subprocessShell error: ${err.stderr}`)
+                } else {
+                    silly(`${name} command does not exist`)
+                    err.message = `Unable to locate executable file: ${cmdName}`
+                }
+            }
+            silly(`${name} throwing...`)
+            throw err
+        })
+        return proc
+    }
+
+    /**
+     * Return `cmd` split into arguments using basic quoting.
+     *
+     * This has only limited token parsing powers, so full Bash quoting and
+     * variables and newlines or line continuations will break things.
+     *
+     * @param {string} cmd
+     * @returns
+     */
+    tokenizeArgs(cmd) {
+        let last = 0
+        let peek = last
+        const tokens = []
+        let escaped = false
+        let quoted = null
+        let quote = 0
+
+        const tokenize = () => {
+            // Empty string, skip it
+            if (last == peek) return
+            // Grab the token
+            let token = cmd.slice(last, peek)
+            // Replace escaped whitespace with a space
+            token = token.replace(/\\ /g, " ")
+            tokens.push(token)
+        }
+
+        while (peek < cmd.length) {
+            let char = cmd[peek]
+            // this.debug(`  ${char}  ${!!quoted}\t${escaped}`)
+            switch (char) {
+                case "'":
+                case '"':
+                    // Escaped quotes aren't handled lexographically
+                    if (escaped && quoted != char) break
+                    else if (escaped) {
+                        // If it's escaped and the char we're escaping is the
+                        // same as our quote, remove the escaping since it won't
+                        // be needed in the final token
+                        cmd =
+                            cmd.slice(0, peek - 1) + cmd.slice(peek, cmd.length)
+                        peek--
+                        break
+                    }
+                    // If we have an open quote and we're hitting the same one,
+                    // and we're not escaped, that will close the quote and the
+                    // next whitespace character will signify the token end
+                    if (quoted && quoted == char) {
+                        // Here we have to strip the quotes from the original
+                        // string(!) so they are processed correctly
+                        // (e.g. "foo"bar"baz" -> foo"bar"baz)
+                        cmd =
+                            cmd.slice(0, quote) +
+                            cmd.slice(quote + 1, peek) +
+                            cmd.slice(peek + 1, cmd.length)
+                        peek -= 2 // Removed quote length
+                        quoted = null
+                        quote = 0
+                    } else if (!quoted) {
+                        quoted = char
+                        quote = peek
+                    }
+                    break
+                case "`":
+                    // Backticks are handled separately because they should not
+                    // be removed from the tokens
+                    if (escaped) break
+                    if (quoted && quoted == char) {
+                        quoted = null
+                        quote = 0
+                    } else if (!quoted) {
+                        quoted = char
+                        quote = peek
+                    }
+                    break
+                case `\\`:
+                    escaped = true
+                    peek++
+                    continue
+                case `\n`:
+                case ` `:
+                    if (quoted) break
+                    if (escaped) break
+                    // If we're not quoting or escaping this whitespace, then we
+                    // found a token
+                    tokenize()
+                    last = peek + 1
+                    break
+            }
+            escaped = false
+            peek++
+        }
+        tokenize()
+        return tokens
     }
 
     // logAndExit logs the error message from a subprocess and sets the failure
@@ -9648,36 +9870,28 @@ class Tool {
      * functional, otherwise it will run the install() method to install it.
      */
     async findInstaller() {
-        const cmd = this.installerVersion
-        const env = await this.getEnv()
-        let root = env[this.envVar]
-        this.info(`Finding installer ${cmd}`)
-        this.debug(JSON.stringify(env))
-        // Disable error logging while we do the install
-        const logError = this.error
-        this.error = () => {}
-        await this.subprocess(cmd, { env: env, silent: true }).catch(
-            async (err) => {
-                if (!/^Unable to locate executable file/.test(err.message)) {
-                    this.debug(`version probe errored: ${err}`)
-                    return err
-                }
-                this.info("Installer not found... attempting to install")
-                this.debug(`installing to root: ${root}`)
-                root = await this.install(root)
-                this.info("Install finished, setting environment")
-                await this.setEnv(root)
-                this.error = logError
-                this.info("Checking version")
-                return this.version(cmd).catch((err) => {
-                    this.debug(`version check failed: ${err.exitCode}`)
-                    this.debug(`  stdout: ${err.stdout}`)
-                    this.debug(`  stderr: ${err.stderr}`)
-                    throw err
-                })
-            },
-        )
-        this.error = logError
+        this.info(`Finding installer: ${this.installerVersion}`)
+        const found = await this.version(this.installerVersion, true)
+        if (found) {
+            this.info("Installer found, setting environment")
+            await this.setEnv()
+            return
+        }
+
+        this.info("Installer not found... attempting to install")
+        let root = await this.findRoot()
+        root = await this.install(root)
+
+        this.info("Install finished, setting environment")
+        await this.setEnv(root)
+
+        this.info("Checking version")
+        return this.version(this.installerVersion).catch((err) => {
+            this.debug(`version check failed: ${err.exitCode}`)
+            this.debug(`  stdout: ${err.stdout}`)
+            this.debug(`  stderr: ${err.stderr}`)
+            throw err
+        })
     }
 
     /**
@@ -9804,6 +10018,7 @@ class Tool {
      * @returns {string} The path to the downloaded or extracted file.
      */
     async downloadTool(url, tar) {
+        this.debug(`downloadTool: ${url}`)
         // This is really only used to support the test environment...
         if (!process__WEBPACK_IMPORTED_MODULE_4__.env.RUNNER_TEMP) {
             this.debug(
@@ -9840,6 +10055,7 @@ class Tool {
      * @returns {Object} - Environment object for use in subprocesses.
      */
     async getEnv(root) {
+        silly(`getEnv: ${root}`)
         root = root ?? (await this.findRoot())
         const env = {}
         let envPath = process__WEBPACK_IMPORTED_MODULE_4__.env.PATH ?? ""

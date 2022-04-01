@@ -37,7 +37,7 @@ export default class Node extends Tool {
         if (isVersionOverridden)
             installCommand = `${installCommand} ${checkVersion}`
 
-        await this.subprocess(installCommand).catch(
+        await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install node version ${checkVersion}`),
         )
 
@@ -102,7 +102,7 @@ export default class Node extends Tool {
 
         // Create environment for running node-doctor
         await this.setEnv(root)
-        await this.subprocess(`bash ${doctor}`)
+        await this.subprocessShell(`bash ${doctor}`)
 
         // Asynchronously clean up the downloaded doctor script
         fsPromises.rm(doctor, { recursive: true }).catch(() => {})
