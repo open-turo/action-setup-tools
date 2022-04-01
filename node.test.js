@@ -3,6 +3,7 @@ import Node from "./node"
 import {
     runAction,
     runActionExpectError,
+    ignoreInstalled,
     cleanPath,
     Cleaner,
     Mute,
@@ -16,15 +17,15 @@ describe("runAction node", () => {
 
     it("works", async () => {
         const desiredVersion = "16.13.2"
-        return runAction("index", { INPUT_NODE: desiredVersion }).then(
-            (proc) => {
-                expect(proc.stderr.toString()).toBe("")
-                expect(proc.stdout).toContain(
-                    `node --version: ${desiredVersion}`,
-                )
-                expect(proc.stdout).toContain("node success!")
-            },
-        )
+        const env = {
+            INPUT_NODE: desiredVersion,
+            ...ignoreInstalled(),
+        }
+        return runAction("index", env).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(`node --version: ${desiredVersion}`)
+            expect(proc.stdout).toContain("node success!")
+        })
     })
 
     it("fails with bad NODENV_ROOT", () => {
@@ -32,6 +33,7 @@ describe("runAction node", () => {
             INPUT_NODE: "16.13.2",
             NODENV_ROOT: "/tmp/.nodenv",
             PATH: cleanPath("nodenv"),
+            ...ignoreInstalled(),
         }
         return expect(
             runActionExpectError("index", env).catch((err) => {

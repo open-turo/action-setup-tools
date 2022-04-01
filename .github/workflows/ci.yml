@@ -47,6 +47,8 @@ jobs:
       - uses: ./.github/actions/action-test
         with:
           use-versions: false
+        env:
+          IGNORE_INSTALLED: "true"
 
   # Build and run the action from this repo to test full functionality
   action-versions:
@@ -58,6 +60,8 @@ jobs:
       - uses: ./.github/actions/action-test
         with:
           use-versions: true
+        env:
+          IGNORE_INSTALLED: "true"
 
   action-asdf:
     name: Test / Pre-installed
@@ -83,6 +87,8 @@ jobs:
           python --version || grep "3.10.2"
           terraform --version | grep "1.1.5"
       - uses: ./.github/actions/action-test
+        env:
+          TEST_PRE_INSTALL: "true"
       - run: |
           # Test versions again
           go version | grep "1.17.6"

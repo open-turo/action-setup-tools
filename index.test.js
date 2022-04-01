@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals"
 
-import { runAction, Mute, runJS } from "./testutil"
+import { runAction, Mute, runJS, ignoreInstalled } from "./testutil"
 
 Mute.all()
 
@@ -52,6 +52,7 @@ describe("run", () => {
             INPUT_NODE: nodeVersion,
             INPUT_TERRAFORM: tfVersion,
             INPUT_PYTHON: pyVersion,
+            ...ignoreInstalled(),
         }).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`go version: ${goVersion}`)
@@ -91,7 +92,10 @@ describe("inline", () => {
         }),
     )
     beforeEach(() => mockProcessExit.mockClear())
-    beforeEach(() => (process.env.RUN_AUTO = "false"))
+    beforeEach(() => {
+        process.env.RUN_AUTO = "false"
+        ignoreInstalled()
+    })
     afterEach(() => {
         process.env = { ...origEnv }
         jest.resetModules()
@@ -127,7 +131,7 @@ describe("inline", () => {
         process.env.RUN_ASYNC = "false"
         process.env.INPUT_GO = "8.0.282" // deliberately bad version
         return expect(run()).rejects.toThrow(
-            "subprocess exited with non-zero code: goenv install -s 8.0.282",
+            "subprocess exited with non-zero code: goenv",
         )
     })
 
@@ -135,15 +139,15 @@ describe("inline", () => {
         process.env.INPUT_GO = "8.0.282" // deliberately bad version
         process.env.INPUT_NODE = "8.0.282" // deliberately bad version
         return expect(run()).rejects.toThrow(
-            /subprocess exited with non-zero code: .* install/,
+            /subprocess exited with non-zero code: .*/,
         )
     })
 
     it("handles an error wrapped in runner", async () => {
         process.env.RUN_AUTO = "true"
         process.env.INPUT_GO = "8.0.282" // deliberately bad version
-        return expect(runner()).resolves.toBe(
-            "subprocess exited with non-zero code: goenv install -s 8.0.282",
+        return expect(runner()).resolves.toMatch(
+            /subprocess exited with non-zero code: goenv/,
         )
     })
 })

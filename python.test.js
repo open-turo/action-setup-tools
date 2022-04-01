@@ -6,6 +6,7 @@ import {
     cleanPath,
     Cleaner,
     Mute,
+    ignoreInstalled,
 } from "./testutil"
 
 Mute.all()
@@ -22,23 +23,24 @@ describe("runAction python", () => {
 
     it("works", async () => {
         const desiredVersion = "3.10.2"
-        return runAction("index", { INPUT_PYTHON: desiredVersion }).then(
-            (proc) => {
-                expect(proc.stderr.toString()).toBe("")
-                expect(proc.stdout).toContain(
-                    `python --version: ${desiredVersion}`,
-                )
-                expect(proc.stdout).toContain("python success!")
-            },
-        )
+        const env = {
+            INPUT_PYTHON: desiredVersion,
+            ...ignoreInstalled(),
+        }
+        return runAction("index", env).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(`python --version: ${desiredVersion}`)
+            expect(proc.stdout).toContain("python success!")
+        })
     })
 
     it("fails with bad PYENV_ROOT", () => {
         // This nonsense is to filter out pyenv if it's already on the path
-        let env = {
+        const env = {
             INPUT_PYTHON: "3.10.2",
             PYENV_ROOT: "/tmp/.pyenv",
             PATH: cleanPath("pyenv"),
+            ...ignoreInstalled(),
         }
         return expect(
             runActionExpectError("index", env).catch((err) => {

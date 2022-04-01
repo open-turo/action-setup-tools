@@ -6,6 +6,7 @@ import {
     cleanPath,
     Cleaner,
     Mute,
+    ignoreInstalled,
 } from "./testutil"
 
 Mute.all()
@@ -16,7 +17,11 @@ describe("runAction golang", () => {
 
     it("works", async () => {
         const desiredVersion = "1.17.6"
-        return runAction("index", { INPUT_GO: desiredVersion }).then((proc) => {
+        const env = {
+            INPUT_GO: desiredVersion,
+            ...ignoreInstalled(),
+        }
+        return runAction("index", env).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`go version: ${desiredVersion}`)
             expect(proc.stdout).toContain("golang success!")
@@ -28,6 +33,7 @@ describe("runAction golang", () => {
             INPUT_GO: "1.17.3",
             GOENV_ROOT: "/tmp/.goenv",
             PATH: cleanPath("shims"),
+            ...ignoreInstalled(),
         }
         return expect(
             runActionExpectError("index", env).catch((err) => {

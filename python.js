@@ -37,7 +37,7 @@ export default class Python extends Tool {
         // unlike tfenv, so we specify it here as an argument explicitly, if it's set
         if (isVersionOverridden) installCommand += ` ${checkVersion}`
 
-        await this.subprocess(installCommand).catch(
+        await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install python version ${checkVersion}`),
         )
 

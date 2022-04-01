@@ -147,6 +147,83 @@ describe("tempRoot", () => {
     })
 })
 
+describe("subprocessShell", () => {
+    const tool = new TestTool()
+    it("works", async () => {
+        const proc = await tool.subprocessShell("echo hello")
+        expect(proc.stdout).toBe("hello\n")
+    })
+
+    it("actually uses the PATH we give it", async () => {
+        const env = { env: { PATH: "/bin:/usr/bin" } }
+        const proc = await tool.subprocessShell('echo "PATH=${PATH}"', env)
+        expect(proc.stdout).toBe(`PATH=${env.env.PATH}\n`)
+    })
+})
+
+describe("tokenizeArgs", () => {
+    const tool = new TestTool()
+    it("works", () => {
+        const cmd = "echo arg1 arg2 arg3"
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "arg1", "arg2", "arg3"])
+    })
+
+    it("handles escaped spaces", () => {
+        const cmd = "echo arg1 arg2\\ arg3"
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "arg1", "arg2 arg3"])
+    })
+
+    it("handles single quotes", () => {
+        const cmd = "echo arg1 'arg2 arg3'"
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "arg1", "arg2 arg3"])
+    })
+
+    it("handles nested quotes", () => {
+        const cmd = "echo \"arg1 'arg2' arg3\""
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "arg1 'arg2' arg3"])
+    })
+
+    it("handles nested quotes 2", () => {
+        const cmd = "echo 'arg1 \"arg2\" arg3'"
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", 'arg1 "arg2" arg3'])
+    })
+
+    it("handles smushy quotes", () => {
+        const cmd = `echo "arg 1"'arg 2'"arg 3"`
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "arg 1arg 2arg 3"])
+    })
+
+    it("handles escaped quotes", () => {
+        const cmd = 'echo \\"arg1\\" arg2 arg3'
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", '\\"arg1\\"', "arg2", "arg3"])
+    })
+
+    it("handles escaped nested quotes", () => {
+        const cmd = 'echo "arg1 \\"arg2\\" arg3"'
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", 'arg1 "arg2" arg3'])
+    })
+
+    it("handles backtick quotes", () => {
+        const cmd = "echo `whoami` arg2 arg3"
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["echo", "`whoami`", "arg2", "arg3"])
+    })
+
+    it("handles bash wrapped commands", () => {
+        const cmd = 'bash -c "echo \\"PATH=$PATH\\""'
+        const args = tool.tokenizeArgs(cmd)
+        expect(args).toEqual(["bash", "-c", 'echo "PATH=$PATH"'])
+    })
+})
+
 describe("all", () => {
     it("gives us no tools when nothing is registered", () => {
         const all = Tool.all()

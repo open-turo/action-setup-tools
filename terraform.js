@@ -31,7 +31,7 @@ export default class Terraform extends Tool {
 
         // Make sure we have the desired terraform version installed (may be
         // pre-installed on self-hosted runners)
-        await this.subprocess("tfenv install").catch(
+        await this.subprocessShell("tfenv install").catch(
             this.logAndExit("install failed"),
         )
 
