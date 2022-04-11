@@ -13,49 +13,48 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  test:
-    name: Test
+  fast:
+    name: Test / Fast
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-tools
       - uses: open-turo/actions-gha/test@v1
         with:
-          checkout-repo: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TEST_FAST: "1"
+
+  # Runs unit tests
+  test:
+    name: Test
+    needs: [lint, fast]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: open-turo/actions-gha/test@v1
+        with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # Build and run the action from this repo to test full functionality
   action:
-    name: Action test
+    name: Test / Inputs
+    needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/action-test
         with:
           use-versions: false
-
-  # Build and run the action from this repo to test full functionality
-  action-versions:
-    name: Action test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/action-test
-        with:
-          use-versions: true
+        env:
+          IGNORE_INSTALLED: "true"
 
   release:
     needs:
       - lint
+      - fast
       - test
       - action
-      - action-versions
     name: Release
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
       - uses: open-turo/actions-gha/release@v1

@@ -17,10 +17,8 @@ jobs:
     name: Test / Fast
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - uses: open-turo/actions-gha/test@v1
         with:
-          checkout-repo: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
           TEST_FAST: "1"
@@ -31,10 +29,8 @@ jobs:
     needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - uses: open-turo/actions-gha/test@v1
         with:
-          checkout-repo: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # Build and run the action from this repo to test full functionality
