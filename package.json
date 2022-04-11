@@ -35,7 +35,7 @@
     "@actions/io": "^1.1.2",
     "@actions/tool-cache": "^1.7.2",
     "find-versions": "^5.0.0",
-    "semver": "^7.3.5"
+    "semver": "^7.3.6"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",
