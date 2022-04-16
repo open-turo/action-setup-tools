@@ -79,12 +79,40 @@ export default class Java extends Tool {
     }
 
     /**
+     * Return the path to the tool installation directory, if found, otherwise
+     * return the default path to the tool.
+     *
+     * @returns {String} - Path to the root folder of the tool.
+     */
+    async findRoot() {
+        ;(function () {
+            // All of this is to check if we have a sdkman install that hasn't
+            // been shimmed which won't be found correctly
+            let check = this.defaultRoot
+            if (!fs.existsSync(check)) return
+            this.debug("defaultRoot exists")
+
+            check = path.join(check, "bin", "sdkman-init.sh")
+            if (!fs.existsSync(check)) return
+            this.debug("sdkman-init.sh exists")
+
+            check = path.join(this.defaultRoot, "bin", "sdk")
+            if (fs.existsSync(check)) return
+            this.debug("sdk shim does not exist")
+
+            this.shimSdk(this.defaultRoot)
+        }.bind(this)())
+        return super.findRoot()
+    }
+
+    /**
      * Download and configures sdkman.
      *
      * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
+     * @param  {string} noShim - Don't install the `sdk` shim.
      * @return {string} The value of SDKMAN_DIR.
      */
-    async install(root) {
+    async install(root, noShim = false) {
         assert(root, "root is required")
         const url = "https://get.sdkman.io?rcupdate=false"
         const install = await this.downloadTool(url)
@@ -97,13 +125,13 @@ export default class Java extends Tool {
 
         // Remove the root dir, because Sdkman will not install if it exists,
         // which is dumb, but that's what we got
-        await fsPromises.rmdir(root)
+        if (fs.existsSync(root)) await fsPromises.rmdir(root)
 
         // Run the installer script
         await this.subprocessShell(`bash ${install}`, { env: env })
 
         // Shim the sdk cli function and add to the path
-        this.shimSdk(root)
+        if (!noShim) this.shimSdk(root)
 
         // Asynchronously clean up the downloaded installer script
         fsPromises.rm(install, { recursive: true }).catch(() => {})
