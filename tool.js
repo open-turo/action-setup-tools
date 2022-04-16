@@ -537,6 +537,13 @@ export default class Tool {
     }
 
     /**
+     * Return the default root path to where the tool likes to be installed.
+     */
+    get defaultRoot() {
+        return path.join(os.homedir(), this.installerPath)
+    }
+
+    /**
      * Return the path to the tool installation directory, if found, otherwise
      * return the default path to the tool.
      *
@@ -544,7 +551,6 @@ export default class Tool {
      */
     async findRoot() {
         const tool = this.installer
-        const dirName = this.installerPath
         const toolEnv = this.envVar
         let toolPath = process.env[toolEnv]
         // Return whatever's currently set if we have it
@@ -560,7 +566,7 @@ export default class Tool {
 
         // Default path is ~/.<dir>/ since that's what our CI uses and most of
         // the tools install there too
-        const defaultPath = path.join(os.homedir(), `${dirName}`)
+        const defaultPath = this.defaultRoot
 
         // Use a subshell get the command path or function name and
         // differentiate in a sane way

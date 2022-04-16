@@ -89,6 +89,20 @@ describe("Java", () => {
             )
         })
     })
+
+    it.only("works if sdkman already is installed on the default", async () => {
+        const tool = new Java()
+        tool.info("-- Initialized")
+        // Install to our defaultRoot if it doesn't exist
+        if (!fs.existsSync(tool.defaultRoot)) {
+            tool.info("-- Installing")
+            // Install without the shim
+            await tool.install(tool.defaultRoot, true)
+            cleaner.root = tool.defaultRoot
+        }
+        tool.info("-- Setup")
+        await tool.setup("8.0.282-librca")
+    })
 })
 
 describe("install", () => {

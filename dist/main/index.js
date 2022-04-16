@@ -8890,12 +8890,40 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
     }
 
     /**
+     * Return the path to the tool installation directory, if found, otherwise
+     * return the default path to the tool.
+     *
+     * @returns {String} - Path to the root folder of the tool.
+     */
+    async findRoot() {
+        ;(function () {
+            // All of this is to check if we have a sdkman install that hasn't
+            // been shimmed which won't be found correctly
+            let check = this.defaultRoot
+            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
+            this.debug("defaultRoot exists")
+
+            check = path__WEBPACK_IMPORTED_MODULE_1__.join(check, "bin", "sdkman-init.sh")
+            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
+            this.debug("sdkman-init.sh exists")
+
+            check = path__WEBPACK_IMPORTED_MODULE_1__.join(this.defaultRoot, "bin", "sdk")
+            if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
+            this.debug("sdk shim does not exist")
+
+            this.shimSdk(this.defaultRoot)
+        }.bind(this)())
+        return super.findRoot()
+    }
+
+    /**
      * Download and configures sdkman.
      *
      * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
+     * @param  {string} noShim - Don't install the `sdk` shim.
      * @return {string} The value of SDKMAN_DIR.
      */
-    async install(root) {
+    async install(root, noShim = false) {
         assert__WEBPACK_IMPORTED_MODULE_2__(root, "root is required")
         const url = "https://get.sdkman.io?rcupdate=false"
         const install = await this.downloadTool(url)
@@ -8908,13 +8936,13 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
 
         // Remove the root dir, because Sdkman will not install if it exists,
         // which is dumb, but that's what we got
-        await fs_promises__WEBPACK_IMPORTED_MODULE_4__.rmdir(root)
+        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(root)) await fs_promises__WEBPACK_IMPORTED_MODULE_4__.rmdir(root)
 
         // Run the installer script
         await this.subprocessShell(`bash ${install}`, { env: env })
 
         // Shim the sdk cli function and add to the path
-        this.shimSdk(root)
+        if (!noShim) this.shimSdk(root)
 
         // Asynchronously clean up the downloaded installer script
         fs_promises__WEBPACK_IMPORTED_MODULE_4__.rm(install, { recursive: true }).catch(() => {})
@@ -9965,6 +9993,13 @@ class Tool {
     }
 
     /**
+     * Return the default root path to where the tool likes to be installed.
+     */
+    get defaultRoot() {
+        return path__WEBPACK_IMPORTED_MODULE_2__.join(os__WEBPACK_IMPORTED_MODULE_1__.homedir(), this.installerPath)
+    }
+
+    /**
      * Return the path to the tool installation directory, if found, otherwise
      * return the default path to the tool.
      *
@@ -9972,7 +10007,6 @@ class Tool {
      */
     async findRoot() {
         const tool = this.installer
-        const dirName = this.installerPath
         const toolEnv = this.envVar
         let toolPath = process__WEBPACK_IMPORTED_MODULE_4__.env[toolEnv]
         // Return whatever's currently set if we have it
@@ -9988,7 +10022,7 @@ class Tool {
 
         // Default path is ~/.<dir>/ since that's what our CI uses and most of
         // the tools install there too
-        const defaultPath = path__WEBPACK_IMPORTED_MODULE_2__.join(os__WEBPACK_IMPORTED_MODULE_1__.homedir(), `${dirName}`)
+        const defaultPath = this.defaultRoot
 
         // Use a subshell get the command path or function name and
         // differentiate in a sane way
