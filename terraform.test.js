@@ -71,6 +71,7 @@ describe("setup", () => {
     afterEach(cleaner.clean)
 
     it("works to install and find itself", async () => {
+        ignoreInstalled()
         const tool = new Terraform()
         const check = await tool
             .subprocessShell("terraform --version")
