@@ -1,18 +1,24 @@
 name: action-setup-tools
-description: Intialize self-hosted tool versions
+description:
+  GitHub Action that installs and provisions supported tools for workflow steps
+  in self-hosted runners. This relies on the agent having supported tooling
+  installed.
 outputs:
   go:
-    description: The Go version used
+    description:
+      The version of golang that has been installed and is ready for use.
   node:
-    description: The Node.js version used
+    description:
+      The verison of Node.js that has been installed and is ready for use.
   java:
-    description: The Java version used
-  kotlin:
-    description: The Kotlin version used
+    description:
+      The version of Java that has been installed and is ready for use.
   python:
-    description: The Python version used
+    description:
+      The version of Python that has been installed and is ready for use.
   terraform:
-    description: The Terraform version used
+    description:
+      The version of Terraform that has been installed and is ready for use.
 runs:
   using: "node16"
   main: "dist/main/index.js"

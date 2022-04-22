@@ -1,10 +1,14 @@
-# action-setup-tools
+# `open-turo/action-setup-tools`
+
+## Description
+
+GitHub Action that installs and provisions supported tools for workflow steps in
+self-hosted runners. This relies on the agent having supported tooling
+installed.
 
 <!-- TODO: Add back badges here when they're not all broken -->
 
-Provisions supported tools for workflow steps in self-hosted runners. This
-relies on the agent having supported tooling installed. This action works with
-the following tooling:
+This action works with the following tooling:
 
 -   [goenv](https://github.com/syndbg/goenv)
 -   [nodenv](https://github.com/nodenv/nodenv)
@@ -17,22 +21,14 @@ but this can be overridden with additional configuration in the action.
 
 ## Usage
 
-This section describes usage of the action.
-
-### Basic
-
-The action in its basic usage relies on the checked out repository or workspace
-to have existing configuration files for each tool.
-
-It takes no inputs and reads these files, such as `.node-version`, to configure
-the tooling correctly for the workflow.
+The Action relies on the checked out repository or workspace to have existing
+configuration files, for each tool, present in the root level of the repository.
+The Action takes no inputs and reads these configuration files, such as
+`.node-version`, to configure the tooling correctly for the workflow.
 
 ```yaml
 name: CI
 on:
-    push:
-        branches:
-            - "main"
     pull_request:
         branches:
             - "main"
@@ -41,53 +37,67 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v2
+              uses: actions/checkout@v3
             - name: Setup tools
               uses: open-turo/action-setup-tools@v1
             - name: Output current environment
               run: env | sort
 ```
 
-### Supported Tools
+## Outputs
+
+| parameter | description                                                            |
+| --------- | ---------------------------------------------------------------------- |
+| go        | The version of golang that has been installed and is ready for use.    |
+| node      | The verison of Node.js that has been installed and is ready for use.   |
+| java      | The version of Java that has been installed and is ready for use.      |
+| python    | The version of Python that has been installed and is ready for use.    |
+| terraform | The version of Terraform that has been installed and is ready for use. |
+
+## Supported Tools
 
 The following tool platforms are supported for configuration but not
 installation. If you are using a self-hosted runner you must pre-install these,
 or if you're using a hosted runner they must be installed separately.
 
-#### golang
+### golang
 
-By default the action will look for a `.go-version` file in the current
+By default the action will look for a `.go-version` file in the root level
 directory. If present it will setup the Golang environment to use that version
 of `go`, installing the specified version if necessary.
 
-#### java
+### java
 
-By default the action will look for a `.sdkmanrc` file in the current directory.
-If present and if specifies a java version it will setup the sdkman environment
-to use that version of java, installing it if necessary. More information about
-`sdkman` can be found [here](https://sdkman.io/). Note that the java version
-identifier is an sdkman version identifier that includes a vendor identifier
-after a dash to indicate which vendor supplies the identified version.
+By default the action will look for a `.sdkmanrc` file in the root level
+directory. If present and if specifies a `java` version it will setup the sdkman
+environment to use that version of `java`, installing it if necessary. More
+information about `sdkman` can be found [here](https://sdkman.io/). Note that
+the java version identifier is an sdkman version identifier that includes a
+vendor identifier after a dash to indicate which vendor supplies the identified
+version.
 
-#### node
+Note that because [sdkman](https://sdkman.io/) supports other tools like Kotlin,
+future support for additional tools via this Action is possible.
 
-By default the action will look for a `.node-version` file in the current
+### node
+
+By default the action will look for a `.node-version` file in the root level
 directory. If present it will setup the node environment to use that version of
 node, installing the specified version if necessary.
 
-#### python
+### python
 
-By default the action will look for a `.python-version` file in the current
+By default the action will look for a `.python-version` file in the root level
 directory. If present it will setup the Python environment to use that version
 of python, installing the specified version if necessary.
 
-#### terraform
+### terraform
 
-By default the action will look for a `.terraform-version` file in the current
-directory. If present it will setup the environment to use that version of
+By default the action will look for a `.terraform-version` file in the root
+level directory. If present it will setup the environment to use that version of
 `terraform`, installing the specified version if necessary.
 
-### Advanced usage
+## Advanced sub-action usage
 
 This repository exports a sub-action, `open-turo/action-setup-tools/versions@v1`
 which allows you to specify the exact version of the tools that you wish to use,
@@ -100,9 +110,6 @@ differentiated results in CI or in your local environment.
 ```yaml
 name: CI
 on:
-    push:
-        branches:
-            - "main"
     pull_request:
         branches:
             - "main"
@@ -111,45 +118,48 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v2
+              uses: actions/checkout@v3
             - name: Setup tools
               uses: open-turo/action-setup-tools/versions@v1
               with:
                   go: 1.17.6
                   java: 17.0.2-tem
-                  node: 16.13.2
+                  node: 16.14.2
                   python: 3.10.2
                   terraform: 1.1.5
             - name: Output current environment
               run: env | sort
 ```
 
-#### Inputs
+### Inputs
 
-<!-- AUTO-DOC-INPUT:START - Do not remove or modify this section -->
+| parameter | description                                  | required | default |
+| --------- | -------------------------------------------- | -------- | ------- |
+| go        | The desired version of golang to install.    | `false`  |         |
+| node      | The desired version of Node.js to install.   | `false`  |         |
+| java      | The desired version of Java to install.      | `false`  |         |
+| python    | The desired version of Python to install.    | `false`  |         |
+| terraform | The desired version of Terraform to install. | `false`  |         |
 
-| INPUT     | TYPE   | REQUIRED | DEFAULT | DESCRIPTION                      |
-| --------- | ------ | -------- | ------- | -------------------------------- |
-| go        | string | false    |         | The Go version to use<br>        |
-| java      | string | false    |         | The Java version to use<br>      |
-| kotlin    | string | false    |         | The Kotlin version to use<br>    |
-| node      | string | false    |         | The Node.js version to use<br>   |
-| python    | string | false    |         | The Python version to use<br>    |
-| terraform | string | false    |         | The Terraform version to use<br> |
+### Outputs
 
-<!-- AUTO-DOC-INPUT:END -->
+| parameter | description                                                            |
+| --------- | ---------------------------------------------------------------------- |
+| go        | The version of golang that has been installed and is ready for use.    |
+| node      | The version of Node.js that has been installed and is ready for use.   |
+| java      | The version of Java that has been installed and is ready for use.      |
+| python    | The version of Python that has been installed and is ready for use.    |
+| terraform | The version of Terraform that has been installed and is ready for use. |
 
-#### Outputs
+## Runs
 
-<!-- AUTO-DOC-OUTPUT:START - Do not remove or modify this section -->
+This Action is an `node16` action.
 
-| OUTPUT    | TYPE   | DESCRIPTION                |
-| --------- | ------ | -------------------------- |
-| go        | string | The Go version used        |
-| java      | string | The Java version used      |
-| kotlin    | string | The Kotlin version used    |
-| node      | string | The Node.js version used   |
-| python    | string | The Python version used    |
-| terraform | string | The Terraform version used |
+## Get Help
 
-<!-- AUTO-DOC-OUTPUT:END -->
+Please review Issues, post new Issues against this repository as needed.
+
+## Contributions
+
+Please see [here](https://github.com/open-turo/contributions) for guidelines on
+how to contribute to this project.
