@@ -9533,7 +9533,9 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
      */
     async installYarn() {
         // Check for an existing version
-        let yarnVersion = await this.version("yarn --version", true)
+        let yarnVersion = await this.version("yarn --version", true).catch(
+            () => {},
+        )
         if (yarnVersion) {
             this.debug(`yarn is already installed (${yarnVersion})`)
             return
