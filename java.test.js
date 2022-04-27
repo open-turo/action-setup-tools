@@ -90,7 +90,7 @@ describe("Java", () => {
         })
     })
 
-    it.only("works if sdkman already is installed on the default", async () => {
+    it("works if sdkman already is installed on the default", async () => {
         const tool = new Java()
         tool.info("-- Initialized")
         // Install to our defaultRoot if it doesn't exist

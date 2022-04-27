@@ -120,7 +120,7 @@ export default class Node extends Tool {
     /**
      * Run `npm install -g yarn` and `nodenv rehash` to ensure `yarn` is on the CLI.
      */
-    async installYarn(){
+    async installYarn() {
         // Check for an existing version
         let yarnVersion = await this.version("yarn --version", true)
         if (yarnVersion) {

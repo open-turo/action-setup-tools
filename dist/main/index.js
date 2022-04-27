@@ -9431,7 +9431,11 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] =
             this.getNodeVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) return
+        if (!(await this.haveVersion(checkVersion))) {
+            // Ensure yarn is present as well, but don't error if it breaks
+            await this.installYarn().catch(() => {})
+            return
+        }
 
         // Check if nodenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
@@ -9455,6 +9459,9 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         // Sanity check that the node command works and its reported version matches what we have
         // requested to be in place.
         await this.validateVersion(checkVersion)
+
+        // Could make this conditional? But for right now we always install `yarn`
+        await this.installYarn()
 
         // If we got this far, we have successfully configured node.
         this.info("node success!")
@@ -9519,6 +9526,28 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         fs_promises__WEBPACK_IMPORTED_MODULE_2__.rm(doctor, { recursive: true }).catch(() => {})
 
         return root
+    }
+
+    /**
+     * Run `npm install -g yarn` and `nodenv rehash` to ensure `yarn` is on the CLI.
+     */
+    async installYarn() {
+        // Check for an existing version
+        let yarnVersion = await this.version("yarn --version", true)
+        if (yarnVersion) {
+            this.debug(`yarn is already installed (${yarnVersion})`)
+            return
+        }
+
+        // Installing yarn with npm, which if this errors means ... things are
+        // badly broken?
+        this.info("Installing yarn")
+        await this.subprocessShell("npm install -g yarn")
+
+        // Just run `nodenv rehash` always and ignore errors because we might be
+        // in a setup-node environment that doesn't have nodenv
+        this.info("Rehashing node shims")
+        await this.subprocessShell("nodenv rehash").catch(() => {})
     }
 }
 
