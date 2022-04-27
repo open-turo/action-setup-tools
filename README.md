@@ -8,13 +8,13 @@ installed.
 
 <!-- TODO: Add back badges here when they're not all broken -->
 
-This action works with the following tooling:
+This action works with the following tooling and repository files:
 
--   [goenv](https://github.com/syndbg/goenv)
--   [nodenv](https://github.com/nodenv/nodenv)
--   [pyenv](https://github.com/pyenv/pyenv)
--   [sdkman](https://sdkman.io/)
--   [tfenv](https://github.com/tfutils/tfenv)
+- [goenv](https://github.com/syndbg/goenv) - `.go-version`
+- [nodenv](https://github.com/nodenv/nodenv) - `.node-version`
+- [pyenv](https://github.com/pyenv/pyenv) - `.python-version`
+- [sdkman](https://sdkman.io/) - `.sdkmanrc`
+- [tfenv](https://github.com/tfutils/tfenv) - `.terraform-version`
 
 Attempts to use configuration provided in the directory structure for each tool,
 but this can be overridden with additional configuration in the action.
@@ -60,13 +60,15 @@ The following tool platforms are supported for configuration but not
 installation. If you are using a self-hosted runner you must pre-install these,
 or if you're using a hosted runner they must be installed separately.
 
-### golang
+### Golang
 
 By default the action will look for a `.go-version` file in the root level
 directory. If present it will setup the Golang environment to use that version
 of `go`, installing the specified version if necessary.
 
-### java
+The Go tools are made available via [goenv](https://github.com/syndbg/goenv).
+
+### Java and Kotlin
 
 By default the action will look for a `.sdkmanrc` file in the root level
 directory. If present and if specifies a `java` version it will setup the sdkman
@@ -79,23 +81,34 @@ version.
 Note that because [sdkman](https://sdkman.io/) supports other tools like Kotlin,
 future support for additional tools via this Action is possible.
 
-### node
+### Node.js
 
 By default the action will look for a `.node-version` file in the root level
 directory. If present it will setup the node environment to use that version of
 node, installing the specified version if necessary.
 
-### python
+This will also attempt to install the `yarn` command and make it available to
+future steps in the workflow.
+
+The Node.js tools are made available via [nodenv](https://github.com/nodenv/nodenv).
+
+### Python
 
 By default the action will look for a `.python-version` file in the root level
 directory. If present it will setup the Python environment to use that version
 of python, installing the specified version if necessary.
 
-### terraform
+This will also make the `pip` available for future steps in the workflow.
+
+The Python tools are made available via [pyenv](https://github.com/pyenv/pyenv).
+
+### Terraform
 
 By default the action will look for a `.terraform-version` file in the root
 level directory. If present it will setup the environment to use that version of
 `terraform`, installing the specified version if necessary.
+
+Terraform is made available via [tfenv](https://github.com/tfutils/tfenv).
 
 ## Advanced sub-action usage
 
@@ -105,7 +118,11 @@ even if they do not have configuration files present in the repository root or
 workspace.
 
 This is not the recommended usage of this action since it can produce
-differentiated results in CI or in your local environment.
+different results in CI or in your local environment and is more difficult to
+maintain than using `.*-version` files.
+
+**Do not use this sub-action except in test workflows with fixed specific version
+*requirements.**
 
 ```yaml
 name: CI
@@ -119,7 +136,7 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v3
-            - name: Setup tools
+            - name: Configure fixed test versions
               uses: open-turo/action-setup-tools/versions@v1
               with:
                   go: 1.17.6
