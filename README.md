@@ -10,11 +10,11 @@ installed.
 
 This action works with the following tooling and repository files:
 
-- [goenv](https://github.com/syndbg/goenv) - `.go-version`
-- [nodenv](https://github.com/nodenv/nodenv) - `.node-version`
-- [pyenv](https://github.com/pyenv/pyenv) - `.python-version`
-- [sdkman](https://sdkman.io/) - `.sdkmanrc`
-- [tfenv](https://github.com/tfutils/tfenv) - `.terraform-version`
+-   [goenv](https://github.com/syndbg/goenv) - `.go-version`
+-   [nodenv](https://github.com/nodenv/nodenv) - `.node-version`
+-   [pyenv](https://github.com/pyenv/pyenv) - `.python-version`
+-   [sdkman](https://sdkman.io/) - `.sdkmanrc`
+-   [tfenv](https://github.com/tfutils/tfenv) - `.terraform-version`
 
 Attempts to use configuration provided in the directory structure for each tool,
 but this can be overridden with additional configuration in the action.
@@ -90,7 +90,8 @@ node, installing the specified version if necessary.
 This will also attempt to install the `yarn` command and make it available to
 future steps in the workflow.
 
-The Node.js tools are made available via [nodenv](https://github.com/nodenv/nodenv).
+The Node.js tools are made available via
+[nodenv](https://github.com/nodenv/nodenv).
 
 ### Python
 
@@ -117,12 +118,12 @@ which allows you to specify the exact version of the tools that you wish to use,
 even if they do not have configuration files present in the repository root or
 workspace.
 
-This is not the recommended usage of this action since it can produce
-different results in CI or in your local environment and is more difficult to
-maintain than using `.*-version` files.
+This is not the recommended usage of this action since it can produce different
+results in CI or in your local environment and is more difficult to maintain
+than using `.*-version` files.
 
-**Do not use this sub-action except in test workflows with fixed specific version
-*requirements.**
+**Do not use this sub-action except in test workflows with fixed specific
+version \*requirements.**
 
 ```yaml
 name: CI
