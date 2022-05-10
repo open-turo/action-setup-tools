@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: open-turo/actions-gha/lint@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.OPEN_TURO_GITHUB_TOKEN }}
 
   fast:
     name: Test / Fast
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: open-turo/actions-gha/test@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.OPEN_TURO_GITHUB_TOKEN }}
         env:
           TEST_FAST: "1"
 
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: open-turo/actions-gha/test@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.OPEN_TURO_GITHUB_TOKEN }}
 
   # Build and run the action from this repo to test full functionality
   action:
@@ -55,6 +55,6 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.OPEN_TURO_GITHUB_TOKEN }}
     steps:
       - uses: open-turo/actions-gha/release@v1
