@@ -39,7 +39,7 @@
     "semver": "^7.3.7"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.17.0",
+    "@babel/eslint-parser": "^7.18.2",
     "@vercel/ncc": "^0.33.4",
     "eslint": "^8.15.0",
     "eslint-config-prettier": "^8.5.0",
