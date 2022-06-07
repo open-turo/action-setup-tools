@@ -177,6 +177,16 @@ This Action is an `node16` action.
 
 Please review Issues, post new Issues against this repository as needed.
 
+## Local development
+
+Ensure that you have installed locally the following tools:
+
+-   [goenv](https://github.com/syndbg/goenv)
+-   [nodenv](https://github.com/nodenv/nodenv)
+-   [pyenv](https://github.com/pyenv/pyenv)
+-   [sdkman](https://sdkman.io/)
+-   [tfenv](https://github.com/tfutils/tfenv)
+
 ## Contributions
 
 Please see [here](https://github.com/open-turo/contributions) for guidelines on
