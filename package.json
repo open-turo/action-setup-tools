@@ -51,5 +51,8 @@
       "/node_modules/",
       "testutil.js"
     ]
+  },
+  "engines": {
+    "node": ">= 16"
   }
 }
