@@ -8,10 +8,11 @@ installed.
 
 <!-- TODO: Add back badges here when they're not all broken -->
 
-This action works with the following tooling and repository files:
+This action works with the following tooling and repository files (in order of
+priority):
 
 -   [goenv](https://github.com/syndbg/goenv) - `.go-version`
--   [nodenv](https://github.com/nodenv/nodenv) - `.node-version`
+-   [nodenv](https://github.com/nodenv/nodenv) - `.node-version`, `.nvmrc`
 -   [pyenv](https://github.com/pyenv/pyenv) - `.python-version`
 -   [sdkman](https://sdkman.io/) - `.sdkmanrc`
 -   [tfenv](https://github.com/tfutils/tfenv) - `.terraform-version`
