@@ -157,7 +157,7 @@ describe("subprocessShell", () => {
     it("actually uses the PATH we give it", async () => {
         const env = { env: { PATH: "/bin:/usr/bin" } }
         const proc = await tool.subprocessShell('echo "PATH=${PATH}"', env)
-        expect(proc.stdout).toBe(`PATH=${env.env.PATH}\n`)
+        expect(proc.stdout).toMatch(new RegExp(`^PATH=.*${env.env.PATH}.*\n$`))
     })
 })
 
