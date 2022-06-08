@@ -32,7 +32,6 @@ describe("runAction java", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`java -version: ${desiredVersion}`)
             expect(proc.stdout).toContain("java success!")
-            cleaner.captureRoot(proc.stdout)
         })
     })
 
@@ -60,7 +59,6 @@ describe("Java", () => {
     it("works when java isn't wanted", async () => {
         ignoreInstalled()
         const tool = new Java()
-        cleaner.root = await tool.findRoot()
         return tool.setup()
     })
 
@@ -82,7 +80,6 @@ describe("Java", () => {
     it("works and sets a sensible JAVA_HOME", async () => {
         ignoreInstalled()
         const tool = new Java()
-        cleaner.root = await tool.findRoot()
         return tool.setup("8.0.282-librca").then(() => {
             expect(process.env.JAVA_HOME).toBe(
                 `${process.env.SDKMAN_DIR}/candidates/java/current`,
