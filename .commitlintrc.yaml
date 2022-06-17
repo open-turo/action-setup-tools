@@ -1,4 +1,2 @@
 extends:
   - "@open-turo/commitlint-config-conventional"
-rules:
-  body-max-line-length: [2, "always", 256]
