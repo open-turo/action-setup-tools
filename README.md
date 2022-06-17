@@ -124,7 +124,7 @@ results in CI or in your local environment and is more difficult to maintain
 than using `.*-version` files.
 
 **Do not use this sub-action except in test workflows with fixed specific
-version \*requirements.**
+version requirements.**
 
 ```yaml
 name: CI
