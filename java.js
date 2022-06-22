@@ -27,7 +27,9 @@ export default class Java extends Tool {
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] =
             this.getJavaVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) return
+        if (!(await this.haveVersion(checkVersion))) {
+            return checkVersion
+        }
 
         // Make sure that sdkman is installed
         await this.findInstaller()
@@ -76,6 +78,7 @@ export default class Java extends Tool {
         // If we got this far, we have successfully configured java.
         core.setOutput(Java.tool, checkVersion)
         this.info("java success!")
+        return checkVersion
     }
 
     /**

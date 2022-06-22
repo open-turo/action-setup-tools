@@ -19,7 +19,9 @@ export default class Python extends Tool {
             desiredVersion,
             ".python-version",
         )
-        if (!(await this.haveVersion(checkVersion))) return
+        if (!(await this.haveVersion(checkVersion))) {
+            return checkVersion
+        }
 
         // Check if pyenv exists and can be run, and capture the version info while
         // we're at it
@@ -50,6 +52,7 @@ export default class Python extends Tool {
         // If we got this far, we have successfully configured python.
         core.setOutput(Python.tool, checkVersion)
         this.info("python success!")
+        return checkVersion
     }
 
     async setEnv() {
