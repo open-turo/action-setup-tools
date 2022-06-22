@@ -23,7 +23,9 @@ export default class Golang extends Tool {
             desiredVersion,
             ".go-version",
         )
-        if (!(await this.haveVersion(checkVersion))) return
+        if (!(await this.haveVersion(checkVersion))) {
+            return checkVersion
+        }
 
         // Check if goenv exists and can be run, and capture the version info while
         // we're at it, should be pre-installed on self-hosted runners.
@@ -59,6 +61,7 @@ export default class Golang extends Tool {
         // If we got this far, we have successfully configured golang.
         core.setOutput(Golang.tool, checkVersion)
         this.info("golang success!")
+        return checkVersion
     }
 
     async setEnv() {

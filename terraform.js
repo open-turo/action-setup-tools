@@ -18,7 +18,9 @@ export default class Terraform extends Tool {
             desiredVersion,
             ".terraform-version",
         )
-        if (!(await this.haveVersion(checkVersion))) return
+        if (!(await this.haveVersion(checkVersion))) {
+            return checkVersion
+        }
 
         // Check if tfenv exists and can be run, and capture the version info while
         // we're at it
@@ -41,6 +43,7 @@ export default class Terraform extends Tool {
         // If we got this far, we have successfully configured terraform.
         core.setOutput(Terraform.tool, checkVersion)
         this.info("terraform success!")
+        return checkVersion
     }
 
     /**

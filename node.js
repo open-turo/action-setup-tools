@@ -23,7 +23,7 @@ export default class Node extends Tool {
         if (!(await this.haveVersion(checkVersion))) {
             // Ensure yarn is present as well, but don't error if it breaks
             await this.installYarn().catch(() => {})
-            return
+            return checkVersion;
         }
 
         // Check if nodenv exists and can be run, and capture the version info while
@@ -54,6 +54,7 @@ export default class Node extends Tool {
 
         // If we got this far, we have successfully configured node.
         this.info("node success!")
+        return checkVersion;
     }
 
     // getNodeVersion returns a [version, override] pair where version is the SemVer
