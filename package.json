@@ -48,6 +48,11 @@
   },
   "jest": {
     "transform": {},
+    "coverageReporters": [
+      "lcov",
+      "html",
+      "text"
+    ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "testutil.js"
