@@ -1,6 +1,8 @@
-import Node from "./node"
+import { jest } from "@jest/globals"
+import fs from "fs"
 
 import {
+    createNodeVersion,
     runAction,
     runActionExpectError,
     ignoreInstalled,
@@ -10,6 +12,26 @@ import {
 } from "./testutil"
 
 Mute.all()
+
+const nodeVersions = [
+    createNodeVersion({ version: "v55.4.0" }),
+    createNodeVersion({ version: "v54.0.0", lts: "latest" }),
+    createNodeVersion({ version: "v52.0.0", lts: "test" }),
+    createNodeVersion({ version: "v51.3.1" }),
+    createNodeVersion({ version: "v51.0.0" }),
+]
+
+// Mock the node-version-data library so we can play with a controlled set of node versions
+// and write predictable expectations in the tests
+jest.unstable_mockModule("node-version-data", () => {
+    return {
+        default: (cb) => cb(null, nodeVersions),
+    }
+})
+
+// Jest has issues when mocking entire modules in the ESM world
+// This is a workaround for that. See https://github.com/facebook/jest/issues/10025#issuecomment-1147776145
+const Node = (await import("./node.js")).default
 
 describe("runAction node", () => {
     const cleaner = new Cleaner(Node)
@@ -55,7 +77,57 @@ describe("install", () => {
 
 describe("setup", () => {
     const cleaner = new Cleaner(Node)
-    afterEach(cleaner.clean)
+
+    afterEach(() => {
+        jest.resetAllMocks()
+        jest.clearAllMocks()
+        jest.restoreAllMocks()
+        cleaner.clean()
+    })
+
+    /**
+     * Mock the filesystem when trying to read a node version file
+     * @param fileName File that is being mocked
+     * @param version Content of the file, aka the node version
+     */
+    const mockNodeVersionFile = (fileName, version) => {
+        // TODO This should not be done like this but mocking an ESM module is a bit more complicated
+        // Also mocking FS like this breaks inline snapshots
+        const exists = jest.fn().mockImplementation((file) => file === fileName)
+        const readFile = jest.fn().mockReturnValue(version)
+        jest.spyOn(fs, "existsSync").mockImplementation(exists)
+        jest.spyOn(fs, "readFileSync").mockImplementation(readFile)
+    }
+
+    it.each([
+        {
+            fileName: ".node-version",
+            content: "55.4.0",
+            expectedVersion: "55.4.0",
+        },
+        { fileName: ".nvmrc", content: "lts/*", expectedVersion: "54.0.0" },
+        { fileName: ".node-version", content: "51", expectedVersion: "51.3.1" },
+        {
+            fileName: ".node-version",
+            content: "lts/test",
+            expectedVersion: "52.0.0",
+        },
+    ])(
+        `parses node versions correctly for: %o`,
+        async ({ fileName, content, expectedVersion }) => {
+            mockNodeVersionFile(fileName, content)
+            // Can't call setup here yet, as the fs mock breaks other inner calls
+            const [version] = await new Node().getNodeVersion()
+            expect(version).toEqual(expectedVersion)
+        },
+    )
+
+    it("throws an error when the version cannot be parsed", () => {
+        mockNodeVersionFile(".node-version", "invalid")
+        expect(new Node().setup()).rejects.toThrow(
+            /Could not parse Node version/,
+        )
+    })
 
     it("works with an override version", async () => {
         return new Node().setup("16.13.2")
