@@ -1,11 +1,15 @@
 import path from "path"
 import assert from "assert"
 import fsPromises from "fs/promises"
+import nodeVersionData from "node-version-data"
+import util from "util"
 
 import core from "@actions/core"
 import findVersions from "find-versions"
 
 import Tool from "./tool.js"
+
+const getVersionData = util.promisify(nodeVersionData)
 
 export default class Node extends Tool {
     static tool = "node"
@@ -18,12 +22,13 @@ export default class Node extends Tool {
     }
 
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] =
-            this.getNodeVersion(desiredVersion)
+        const [checkVersion, isVersionOverridden] = await this.getNodeVersion(
+            desiredVersion,
+        )
         if (!(await this.haveVersion(checkVersion))) {
             // Ensure yarn is present as well, but don't error if it breaks
             await this.installYarn().catch(() => {})
-            return checkVersion;
+            return checkVersion
         }
 
         // Check if nodenv exists and can be run, and capture the version info while
@@ -54,30 +59,76 @@ export default class Node extends Tool {
 
         // If we got this far, we have successfully configured node.
         this.info("node success!")
-        return checkVersion;
+        return checkVersion
     }
 
-    // getNodeVersion returns a [version, override] pair where version is the SemVer
-    // string and the override is a boolean indicating the version must be manually
-    // set for installs.
-    getNodeVersion(desiredVersion) {
+    /**
+     * Given an nvmrc node version spec, convert it to a SemVer node version
+     * @param {String} fileName File where to look for the node version
+     * @returns {Promise<string | undefined>} Parsed version
+     */
+    async parseNvmrcVersion(fileName) {
+        const nodeVersion = this.getVersion(null, fileName)[0]
+        if (!nodeVersion) {
+            return undefined
+        }
+        // Versions are sorted from newest to oldest
+        const versionData = await getVersionData()
+        let version
+        if (/^lts\/.*/i.test(nodeVersion)) {
+            if (nodeVersion === "lts/*") {
+                // We just want the latest LTS
+                version = versionData.find((v) => v.lts !== false)?.version
+            } else {
+                version = versionData.find(
+                    (v) =>
+                        nodeVersion.substring(4).toLowerCase() ===
+                        (v.lts || "").toLowerCase(),
+                )?.version
+            }
+        } else if (nodeVersion === "node") {
+            // We need the latest version
+            version = versionData[0].version
+        } else {
+            // This could be a full or a partial version, so use partial matching
+            version = versionData.find((v) =>
+                v.version.startsWith(`v${nodeVersion}`),
+            )?.version
+        }
+        if (version !== undefined) {
+            return findVersions(version)[0]
+        }
+        throw new Error(`Could not parse Node version "${nodeVersion}"`)
+    }
+
+    /**
+     * Return a [version, override] pair where version is the SemVer string
+     * and the override is a boolean indicating the version must be manually set
+     * for installs.
+     *
+     * If a desired version is specified the function returns this one. If not,
+     * it will look for a .node-version or a .nvmrc file (in this order) to extract
+     * the desired node version
+     *
+     * It is expected that these files follow the NVM spec: https://github.com/nvm-sh/nvm#nvmrc
+     * @param [desiredVersion] Desired node version
+     * @returns {Promise<[string | null, boolean | null]>} Resolved node version
+     */
+    async getNodeVersion(desiredVersion) {
         // If we're given a version, it's the one we want
         if (desiredVersion) return [desiredVersion, true]
 
         // If .node-version is present, it's the one we want, and it's not
         // considered an override
-        let nodenvVersion
-        nodenvVersion = this.getVersion(null, ".node-version")[0]
-        if (nodenvVersion) {
-            return [nodenvVersion, false]
+        const nodeVersion = await this.parseNvmrcVersion(".node-version")
+        if (nodeVersion) {
+            return [nodeVersion, false]
         }
 
-        // If .nvmrc is present, we fall back to it, but parse away the leading "v"
-        let nvmVersion
-        nvmVersion = this.getVersion(null, ".nvmrc")[0]
-        if (nvmVersion) {
-            nvmVersion = findVersions(nvmVersion)[0]
-            return [nvmVersion, true]
+        // If .nvmrc is present, we fall back to it
+        const nvmrcVersion = await this.parseNvmrcVersion(".nvmrc")
+        if (nvmrcVersion) {
+            return [nvmrcVersion, false]
         }
 
         // Otherwise we have no node
