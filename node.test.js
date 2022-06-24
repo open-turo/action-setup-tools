@@ -46,6 +46,7 @@ describe("runAction node", () => {
         return runAction("index", env).then((proc) => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toContain(`node --version: ${desiredVersion}`)
+            expect(proc.stdout).toContain("nodenv update-version-defs")
             expect(proc.stdout).toContain("node success!")
         })
     })
