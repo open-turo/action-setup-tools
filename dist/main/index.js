@@ -20314,9 +20314,21 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
             _actions_core__WEBPACK_IMPORTED_MODULE_5__.exportVariable("NODENV_VERSION", checkVersion)
         }
 
+        // Update nodeenv versions in case the user is requesting a node version
+        // that did not exist when nodenenv was installed
+        const updateVersionsCommand = `${this.installer} update-version-defs`
+        await this.subprocessShell(updateVersionsCommand).catch((error) => {
+            this.warning(
+                `Failed to update nodenv version refs, install may fail`,
+            )
+            if (error.stderr) {
+                this.debug(error.stderr)
+            }
+        })
+
         // using -s option to skip the install and become a no-op if the
         // version requested to be installed is already installed according to nodenv.
-        let installCommand = "nodenv install -s"
+        let installCommand = `${this.installer} install -s`
         if (isVersionOverridden)
             installCommand = `${installCommand} ${checkVersion}`
 
