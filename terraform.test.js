@@ -84,7 +84,7 @@ describe("setup", () => {
 
         await tool.setup("1.1.2")
         const proc = await tool.subprocessShell("tfenv --version")
-        expect(proc.stdout).toEqual("tfenv 2.2.3\n")
+        expect(proc.stdout).toMatch(/^tfenv \d\.\d\.\d\n$/)
     })
 
     it("works with an override version", () => {
