@@ -20326,12 +20326,8 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
             }
         })
 
-        // using -s option to skip the install and become a no-op if the
-        // version requested to be installed is already installed according to nodenv.
-        let installCommand = `${this.installer} install -s`
-        if (isVersionOverridden)
-            installCommand = `${installCommand} ${checkVersion}`
-
+        // Install the desired version as it was not in the system
+        const installCommand = `${this.installer} install -s ${checkVersion}`
         await this.subprocessShell(installCommand).catch(
             this.logAndExit(`failed to install node version ${checkVersion}`),
         )
