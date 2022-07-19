@@ -136,7 +136,9 @@ export default class Node extends Tool {
         // If .nvmrc is present, we fall back to it
         const nvmrcVersion = await this.parseNvmrcVersion(".nvmrc")
         if (nvmrcVersion) {
-            return [nvmrcVersion, false]
+            // In this case we want to override the version, as nodenv is not aware of this file
+            // and we want to use it
+            return [nvmrcVersion, true]
         }
 
         // Otherwise we have no node
