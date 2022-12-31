@@ -325,9 +325,9 @@ export default class Tool {
         opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
 
         if (process.env.SILLY_LOGGING) {
-            let paths = opts.env.PATH.split(":").filter((i) =>
-                i.includes(this.installer),
-            )
+            let paths = (opts.env.PATH || "")
+                .split(":")
+                .filter((i) => i.includes(this.installer))
             if (!paths) silly(`${name} no matching PATH`)
             else silly(`${name} matching PATH=`)
             paths.forEach((p) => silly(`${name} \t${p}`))
