@@ -35,11 +35,6 @@ export default class Node extends Tool {
         // we're at it, should be pre-installed on self-hosted runners.
         await this.findInstaller()
 
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            core.exportVariable("NODENV_VERSION", checkVersion)
-        }
-
         // Update nodeenv versions in case the user is requesting a node version
         // that did not exist when nodenenv was installed
         const updateVersionsCommand = `${this.installer} update-version-defs`
@@ -51,6 +46,11 @@ export default class Node extends Tool {
                 this.debug(error.stderr)
             }
         })
+
+        // Set downstream environment variable for future steps in this Job
+        if (isVersionOverridden) {
+            core.exportVariable("NODENV_VERSION", checkVersion)
+        }
 
         // Install the desired version as it was not in the system
         const installCommand = `${this.installer} install -s ${checkVersion}`
