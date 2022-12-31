@@ -20557,7 +20557,7 @@ Golang.register()
 /***/ 1378:
 /***/ ((__webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
-__nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependencies__) => {
+__nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
 /* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
 /* harmony export */   "Z": () => (/* binding */ run),
 /* harmony export */   "u": () => (/* binding */ runner)
@@ -20638,8 +20638,8 @@ await (async function main() {
     await runner()
 })()
 
-__webpack_handle_async_dependencies__();
-}, 1);
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } }, 1);
 
 /***/ }),
 
@@ -21006,11 +21006,6 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         // we're at it, should be pre-installed on self-hosted runners.
         await this.findInstaller()
 
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            _actions_core__WEBPACK_IMPORTED_MODULE_5__.exportVariable("NODENV_VERSION", checkVersion)
-        }
-
         // Update nodeenv versions in case the user is requesting a node version
         // that did not exist when nodenenv was installed
         const updateVersionsCommand = `${this.installer} update-version-defs`
@@ -21022,6 +21017,11 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
                 this.debug(error.stderr)
             }
         })
+
+        // Set downstream environment variable for future steps in this Job
+        if (isVersionOverridden) {
+            _actions_core__WEBPACK_IMPORTED_MODULE_5__.exportVariable("NODENV_VERSION", checkVersion)
+        }
 
         // Install the desired version as it was not in the system
         const installCommand = `${this.installer} install -s ${checkVersion}`
@@ -21730,9 +21730,9 @@ class Tool {
         opts.env = opts.env ?? { ...process__WEBPACK_IMPORTED_MODULE_4__.env, ...(await this.getEnv()) }
 
         if (process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING) {
-            let paths = opts.env.PATH.split(":").filter((i) =>
-                i.includes(this.installer),
-            )
+            let paths = (opts.env.PATH || "")
+                .split(":")
+                .filter((i) => i.includes(this.installer))
             if (!paths) silly(`${name} no matching PATH`)
             else silly(`${name} matching PATH=`)
             paths.forEach((p) => silly(`${name} \t${p}`))
@@ -22176,75 +22176,70 @@ class Tool {
 /************************************************************************/
 /******/ /* webpack/runtime/async module */
 /******/ (() => {
-/******/ 	var webpackThen = typeof Symbol === "function" ? Symbol("webpack then") : "__webpack_then__";
+/******/ 	var webpackQueues = typeof Symbol === "function" ? Symbol("webpack queues") : "__webpack_queues__";
 /******/ 	var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
-/******/ 	var completeQueue = (queue) => {
-/******/ 		if(queue) {
+/******/ 	var webpackError = typeof Symbol === "function" ? Symbol("webpack error") : "__webpack_error__";
+/******/ 	var resolveQueue = (queue) => {
+/******/ 		if(queue && !queue.d) {
+/******/ 			queue.d = 1;
 /******/ 			queue.forEach((fn) => (fn.r--));
 /******/ 			queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
 /******/ 		}
 /******/ 	}
-/******/ 	var completeFunction = (fn) => (!--fn.r && fn());
-/******/ 	var queueFunction = (queue, fn) => (queue ? queue.push(fn) : completeFunction(fn));
 /******/ 	var wrapDeps = (deps) => (deps.map((dep) => {
 /******/ 		if(dep !== null && typeof dep === "object") {
-/******/ 			if(dep[webpackThen]) return dep;
+/******/ 			if(dep[webpackQueues]) return dep;
 /******/ 			if(dep.then) {
 /******/ 				var queue = [];
+/******/ 				queue.d = 0;
 /******/ 				dep.then((r) => {
 /******/ 					obj[webpackExports] = r;
-/******/ 					completeQueue(queue);
-/******/ 					queue = 0;
+/******/ 					resolveQueue(queue);
+/******/ 				}, (e) => {
+/******/ 					obj[webpackError] = e;
+/******/ 					resolveQueue(queue);
 /******/ 				});
 /******/ 				var obj = {};
-/******/ 											obj[webpackThen] = (fn, reject) => (queueFunction(queue, fn), dep['catch'](reject));
+/******/ 				obj[webpackQueues] = (fn) => (fn(queue));
 /******/ 				return obj;
 /******/ 			}
 /******/ 		}
 /******/ 		var ret = {};
-/******/ 							ret[webpackThen] = (fn) => (completeFunction(fn));
-/******/ 							ret[webpackExports] = dep;
-/******/ 							return ret;
+/******/ 		ret[webpackQueues] = x => {};
+/******/ 		ret[webpackExports] = dep;
+/******/ 		return ret;
 /******/ 	}));
 /******/ 	__nccwpck_require__.a = (module, body, hasAwait) => {
-/******/ 		var queue = hasAwait && [];
+/******/ 		var queue;
+/******/ 		hasAwait && ((queue = []).d = 1);
+/******/ 		var depQueues = new Set();
 /******/ 		var exports = module.exports;
 /******/ 		var currentDeps;
 /******/ 		var outerResolve;
 /******/ 		var reject;
-/******/ 		var isEvaluating = true;
-/******/ 		var nested = false;
-/******/ 		var whenAll = (deps, onResolve, onReject) => {
-/******/ 			if (nested) return;
-/******/ 			nested = true;
-/******/ 			onResolve.r += deps.length;
-/******/ 			deps.map((dep, i) => (dep[webpackThen](onResolve, onReject)));
-/******/ 			nested = false;
-/******/ 		};
 /******/ 		var promise = new Promise((resolve, rej) => {
 /******/ 			reject = rej;
-/******/ 			outerResolve = () => (resolve(exports), completeQueue(queue), queue = 0);
+/******/ 			outerResolve = resolve;
 /******/ 		});
 /******/ 		promise[webpackExports] = exports;
-/******/ 		promise[webpackThen] = (fn, rejectFn) => {
-/******/ 			if (isEvaluating) { return completeFunction(fn); }
-/******/ 			if (currentDeps) whenAll(currentDeps, fn, rejectFn);
-/******/ 			queueFunction(queue, fn);
-/******/ 			promise['catch'](rejectFn);
-/******/ 		};
+/******/ 		promise[webpackQueues] = (fn) => (queue && fn(queue), depQueues.forEach(fn), promise["catch"](x => {}));
 /******/ 		module.exports = promise;
 /******/ 		body((deps) => {
-/******/ 			if(!deps) return outerResolve();
 /******/ 			currentDeps = wrapDeps(deps);
-/******/ 			var fn, result;
-/******/ 			var promise = new Promise((resolve, reject) => {
-/******/ 				fn = () => (resolve(result = currentDeps.map((d) => (d[webpackExports]))));
+/******/ 			var fn;
+/******/ 			var getResult = () => (currentDeps.map((d) => {
+/******/ 				if(d[webpackError]) throw d[webpackError];
+/******/ 				return d[webpackExports];
+/******/ 			}))
+/******/ 			var promise = new Promise((resolve) => {
+/******/ 				fn = () => (resolve(getResult));
 /******/ 				fn.r = 0;
-/******/ 				whenAll(currentDeps, fn, reject);
+/******/ 				var fnQueue = (q) => (q !== queue && !depQueues.has(q) && (depQueues.add(q), q && !q.d && (fn.r++, q.push(fn))));
+/******/ 				currentDeps.map((dep) => (dep[webpackQueues](fnQueue)));
 /******/ 			});
-/******/ 			return fn.r ? promise : result;
-/******/ 		}).then(outerResolve, reject);
-/******/ 		isEvaluating = false;
+/******/ 			return fn.r ? promise : getResult();
+/******/ 		}, (err) => ((err ? reject(promise[webpackError] = err) : outerResolve(exports)), resolveQueue(queue)));
+/******/ 		queue && (queue.d = 0);
 /******/ 	};
 /******/ })();
 /******/ 
