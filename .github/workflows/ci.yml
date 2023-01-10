@@ -13,6 +13,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
+
   fast:
     name: Test / Fast
     runs-on: ubuntu-latest
@@ -23,6 +27,10 @@ jobs:
         env:
           TEST_FAST: "1"
 
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
+
   # Runs unit tests
   test:
     name: Test
@@ -32,6 +40,10 @@ jobs:
       - uses: open-turo/actions-gha/test@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
 
   # Build and run the action from this repo to test full functionality
   action:
@@ -46,6 +58,10 @@ jobs:
         env:
           IGNORE_INSTALLED: "true"
 
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
+
   # Build and run the action from this repo to test full functionality
   action-versions:
     name: Test / Version files
@@ -58,6 +74,10 @@ jobs:
           use-versions: true
         env:
           IGNORE_INSTALLED: "true"
+
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
 
   action-asdf:
     name: Test / Pre-installed
@@ -92,3 +112,7 @@ jobs:
           node --version | grep "16.13.2"
           python --version || grep "3.10.2"
           terraform --version | grep "1.1.5"
+
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
