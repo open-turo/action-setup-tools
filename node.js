@@ -204,4 +204,4 @@ export default class Node extends Tool {
     }
 }
 
-Node.register()
+Node.registerTier1()

@@ -88,4 +88,4 @@ export default class Golang extends Tool {
 }
 
 // Register the subclass in our tool list
-Golang.register()
+Golang.registerTier1()

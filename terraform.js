@@ -67,4 +67,4 @@ export default class Terraform extends Tool {
 }
 
 // Register the subclass in our tool list
-Terraform.register()
+Terraform.registerTier1()

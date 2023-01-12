@@ -20,7 +20,9 @@ const silly = process.env.SILLY_LOGGING
 
 // Superclass for all supported tools
 export default class Tool {
-    static registry = {}
+    static tier1Registry = {}
+    // Tools in tier2Registry to be setup after tier1 tools since tier2 tools depend upon tier1 tools.
+    static tier2Registry = {}
 
     /** Default values that we don't want to bury in the code. */
     static defaults = {
@@ -718,16 +720,31 @@ export default class Tool {
         return path
     }
 
-    // register adds name : subclass to the tool registry
-    static register() {
-        this.registry[this.tool] = this
+    // registerTier1 adds name : subclass to the Tier 1 tool registry. Tier 1 tools to be setup prior
+    // to Tier 2 tools since the latter depends upon the former.
+    static registerTier1() {
+        this.tier1Registry[this.tool] = this
     }
 
-    // all returns an array of objects containing the tool name and the bound
+    // registerTier2 adds name : subclass to the Tier 2 tool registry
+    static registerTier2() {
+        this.tier2Registry[this.tool] = this
+    }
+
+    // allTier1 returns an array of objects from tier1 containing the tool name and the bound
     // setup function of a tool instance
-    static all() {
-        return Object.keys(this.registry).map((k) => {
-            let tool = new this.registry[k]()
+    static allTier1() {
+        return Object.keys(this.tier1Registry).map((k) => {
+            let tool = new this.tier1Registry[k]()
+            return { name: k, setup: tool.setup.bind(tool) }
+        })
+    }
+
+    // allTier2 returns an array of objects from tier2 containing the tool name and the bound
+    // setup function of a tool instance
+    static allTier2() {
+        return Object.keys(this.tier2Registry).map((k) => {
+            let tool = new this.tier2Registry[k]()
             return { name: k, setup: tool.setup.bind(tool) }
         })
     }

@@ -20549,7 +20549,7 @@ class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
 }
 
 // Register the subclass in our tool list
-Golang.register()
+Golang.registerTier1()
 
 
 /***/ }),
@@ -20564,7 +20564,7 @@ __nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependen
 /* harmony export */ });
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2186);
 /* harmony import */ var _golang_js__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3127);
-/* harmony import */ var _java_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(5745);
+/* harmony import */ var _java_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3421);
 /* harmony import */ var _node_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(6562);
 /* harmony import */ var _python_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(11);
 /* harmony import */ var _terraform_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(5105);
@@ -20587,11 +20587,16 @@ async function run() {
     // Create a list of setup() promises from all the tools
     // Wait for all the setup() promises to resolve
     if (runAsync) {
-        _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups in parallel")
-        const setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all().map((tool) =>
-            tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)),
+        _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running Tier 1 setups in parallel")
+        const tier1Setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].allTier1 */ .Z.allTier1().map((tier1Tool) =>
+            tier1Tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tier1Tool.name)),
         )
-        return Promise.all(setups)
+        await Promise.all(tier1Setups)
+        _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running Tier 2 setups in parallel")
+        const tier2Setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].allTier2 */ .Z.allTier2().map((tier2Tool) =>
+            tier2Tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tier2Tool.name)),
+        )
+        return Promise.all(tier2Setups)
     } else {
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups sequentially")
         let errs = []
@@ -20599,11 +20604,24 @@ async function run() {
             _actions_core__WEBPACK_IMPORTED_MODULE_0__.error(`caught error in setup: ${err}`)
             errs.push(err)
         }
-        for (let tool of _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all()) {
+        // Force the first tier tools to be setup prior to the second tier as the second tier tools
+        // depend on the first tier tools already being available.
+        for (let tier1Tool of _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].allTier1 */ .Z.allTier1()) {
             try {
                 // For some reason this catch call isn't working the way I expect,
                 // but I can't figure it out, so we double down with try/catch
-                await tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)).catch(errHandler)
+                await tier1Tool
+                    .setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tier1Tool.name))
+                    .catch(errHandler)
+            } catch (err) {
+                errHandler(err)
+            }
+        }
+        for (let tier2Tool of _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].allTier2 */ .Z.allTier2()) {
+            try {
+                await tier2Tool
+                    .setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tier2Tool.name))
+                    .catch(errHandler)
             } catch (err) {
                 errHandler(err)
             }
@@ -20643,19 +20661,27 @@ __webpack_async_result__();
 
 /***/ }),
 
-/***/ 5745:
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
-
-/* unused harmony export default */
-/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(7147);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(1017);
-/* harmony import */ var assert__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(9491);
-/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(7282);
-/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(3292);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(2186);
-/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(4067);
+/***/ 3421:
+/***/ ((__unused_webpack___webpack_module__, __unused_webpack___webpack_exports__, __nccwpck_require__) => {
 
 
+// UNUSED EXPORTS: default
+
+// EXTERNAL MODULE: external "fs"
+var external_fs_ = __nccwpck_require__(7147);
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(1017);
+// EXTERNAL MODULE: external "process"
+var external_process_ = __nccwpck_require__(7282);
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(2186);
+// EXTERNAL MODULE: external "assert"
+var external_assert_ = __nccwpck_require__(9491);
+// EXTERNAL MODULE: external "fs/promises"
+var promises_ = __nccwpck_require__(3292);
+// EXTERNAL MODULE: ./tool.js
+var tool = __nccwpck_require__(4067);
+;// CONCATENATED MODULE: ./sdkmantool.js
 
 
 
@@ -20664,7 +20690,171 @@ __webpack_async_result__();
 
 
 
-class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
+// abstract class
+class SdkmanTool extends tool/* default */.Z {
+    static tool = "sdkman"
+    static installer = "sdk"
+    static installerPath = ".sdkman"
+    static installerVersion = "sdk version"
+
+    constructor() {
+        super(SdkmanTool.tool)
+    }
+
+    /**
+     * Return the path to the tool installation directory, if found, otherwise
+     * return the default path to the tool.
+     *
+     * @returns {String} - Path to the root folder of the tool.
+     */
+    async findRoot() {
+        ;(function () {
+            // All of this is to check if we have a sdkman install that hasn't
+            // been shimmed which won't be found correctly
+            let check = this.defaultRoot
+            if (!external_fs_.existsSync(check)) return
+            this.debug("defaultRoot exists")
+
+            check = external_path_.join(check, "bin", "sdkman-init.sh")
+            if (!external_fs_.existsSync(check)) return
+            this.debug("sdkman-init.sh exists")
+
+            check = external_path_.join(this.defaultRoot, "bin", "sdk")
+            if (external_fs_.existsSync(check)) return
+            this.debug("sdk shim does not exist")
+
+            this.shimSdk(this.defaultRoot)
+        }.bind(this)())
+        return super.findRoot()
+    }
+
+    /**
+     * Download and configures sdkman.
+     *
+     * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
+     * @param  {string} noShim - Don't install the `sdk` shim.
+     * @return {string} The value of SDKMAN_DIR.
+     */
+    async install(root, noShim = false) {
+        external_assert_(root, "root is required")
+        const url = "https://get.sdkman.io?rcupdate=false"
+        const install = await this.downloadTool(url)
+
+        // Export the SDKMAN_DIR for installation location
+        await this.setEnv(root)
+
+        // Create an env copy so we don't call findRoot during the install
+        const env = { ...external_process_.env, ...(await this.getEnv(root)) }
+
+        // Remove the root dir, because Sdkman will not install if it exists,
+        // which is dumb, but that's what we got
+        if (external_fs_.existsSync(root)) await promises_.rmdir(root)
+
+        // Run the installer script
+        await this.subprocessShell(`bash ${install}`, { env: env })
+
+        // Shim the sdk cli function and add to the path
+        if (!noShim) this.shimSdk(root)
+
+        // Asynchronously clean up the downloaded installer script
+        promises_.rm(install, { recursive: true }).catch(() => {})
+
+        return root
+    }
+
+    /**
+     * Create a shim for the `sdk` CLI functions that otherwise would require an
+     * active shell.
+     *
+     * @param {string} root - The root directory of the sdkman installation.
+     */
+    shimSdk(root) {
+        const shim = external_path_.join(root, "bin", "sdk")
+
+        // This is our actual sdk shim script
+        const shimTmpl = `\
+#!/bin/bash
+export SDKMAN_DIR="${root}"
+SDKMAN_INIT_FILE="$SDKMAN_DIR/bin/sdkman-init.sh"
+if [[ ! -s "$SDKMAN_INIT_FILE" ]]; then exit 13; fi
+if [[ -z "$SDKMAN_AVAILABLE" ]]; then source "$SDKMAN_INIT_FILE" >/dev/null; fi
+export -f
+sdk "$@"
+`
+        this.info(`Creating sdk shim at ${shim}`)
+
+        // Ensure we have a path to install the shim to, no matter what
+        external_fs_.mkdirSync(external_path_.dirname(shim), { recursive: true })
+        // Remove the shim if there's something there, it's probably bad
+        if (external_fs_.existsSync(shim)) external_fs_.rmSync(shim)
+        // Write our new shim
+        external_fs_.writeFileSync(shim, shimTmpl, { mode: 0o755 })
+    }
+
+    /**
+     * Ensure that the sdkman config file contains the settings necessary for
+     * executing in a non-interactive CI environment.
+     */
+    checkSdkmanSettings(configFile) {
+        // Easy case, no file, make sure the directory exists and write config
+        if (!external_fs_.existsSync(configFile)) {
+            this.debug("writing sdkman config")
+            const configPath = external_path_.dirname(configFile)
+            external_fs_.mkdirSync(configPath, { recursive: true })
+            // This config is taken from the packer repo
+            external_fs_.writeFileSync(
+                configFile,
+                `\
+sdkman_auto_answer=true
+sdkman_auto_complete=true
+sdkman_auto_env=true
+sdkman_beta_channel=false
+sdkman_colour_enable=true
+sdkman_curl_connect_timeout=7
+sdkman_curl_max_time=10
+sdkman_debug_mode=false
+sdkman_insecure_ssl=false
+sdkman_rosetta2_compatible=false
+sdkman_selfupdate_enable=false`,
+            )
+            return
+        }
+
+        this.debug("sdkman config already present")
+        // If we get here, the file exists, and we just hope it's configured right
+        let data = external_fs_.readFileSync(configFile, "utf8")
+        if (/sdkman_auto_answer=true/.test(data)) {
+            // We're good
+            this.debug("sdkman config okay")
+            return
+        }
+
+        this.debug("sdkman config misconfigured, maybe")
+        this.debug(external_fs_.readFileSync(configFile, "utf8"))
+
+        this.debug("overwriting it because otherwise this tool won't work")
+        data = data.replace(
+            /sdkman_auto_answer=false/,
+            "sdkman_auto_answer=true",
+        )
+        data = data.replace(
+            /sdkman_selfupdate_enable=true/,
+            "sdkman_selfupdate_enable=true",
+        )
+        external_fs_.writeFileSync(configFile, data)
+    }
+}
+
+;// CONCATENATED MODULE: ./java.js
+
+
+
+
+
+
+
+
+class Java extends SdkmanTool {
     static tool = "java"
     static toolVersion = "java -version"
     static envVar = "SDKMAN_DIR"
@@ -20692,12 +20882,12 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
 
         // This doesn't fail hard, but it probably should
         this.checkSdkmanSettings(
-            path__WEBPACK_IMPORTED_MODULE_1__.join(`${await this.findRoot()}`, "etc/config"),
+            external_path_.join(`${await this.findRoot()}`, "etc/config"),
         )
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            _actions_core__WEBPACK_IMPORTED_MODULE_5__.exportVariable("JAVA_VERSION", checkVersion)
+            core.exportVariable("JAVA_VERSION", checkVersion)
         }
 
         // If sdkman is requested to install the same version of java more than once,
@@ -20715,12 +20905,12 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         )
 
         // export JAVA_HOME to force using the correct version of java
-        const javaHome = `${process__WEBPACK_IMPORTED_MODULE_3__.env[this.envVar]}/candidates/java/current`
-        _actions_core__WEBPACK_IMPORTED_MODULE_5__.exportVariable("JAVA_HOME", javaHome)
+        const javaHome = `${external_process_.env[this.envVar]}/candidates/java/current`
+        core.exportVariable("JAVA_HOME", javaHome)
 
         // Augment path so that the current version of java according to sdkman will be
         // the version found.
-        _actions_core__WEBPACK_IMPORTED_MODULE_5__.addPath(`${javaHome}/bin`)
+        core.addPath(`${javaHome}/bin`)
 
         // Remove the trailing -blah from the Java version string
         const expectedVersion = checkVersion.replace(/[-_][^-_]+$/, "")
@@ -20730,99 +20920,9 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         await this.validateVersion(expectedVersion)
 
         // If we got this far, we have successfully configured java.
-        _actions_core__WEBPACK_IMPORTED_MODULE_5__.setOutput(Java.tool, checkVersion)
+        core.setOutput(Java.tool, checkVersion)
         this.info("java success!")
         return checkVersion
-    }
-
-    /**
-     * Return the path to the tool installation directory, if found, otherwise
-     * return the default path to the tool.
-     *
-     * @returns {String} - Path to the root folder of the tool.
-     */
-    async findRoot() {
-        ;(function () {
-            // All of this is to check if we have a sdkman install that hasn't
-            // been shimmed which won't be found correctly
-            let check = this.defaultRoot
-            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
-            this.debug("defaultRoot exists")
-
-            check = path__WEBPACK_IMPORTED_MODULE_1__.join(check, "bin", "sdkman-init.sh")
-            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
-            this.debug("sdkman-init.sh exists")
-
-            check = path__WEBPACK_IMPORTED_MODULE_1__.join(this.defaultRoot, "bin", "sdk")
-            if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
-            this.debug("sdk shim does not exist")
-
-            this.shimSdk(this.defaultRoot)
-        }.bind(this)())
-        return super.findRoot()
-    }
-
-    /**
-     * Download and configures sdkman.
-     *
-     * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
-     * @param  {string} noShim - Don't install the `sdk` shim.
-     * @return {string} The value of SDKMAN_DIR.
-     */
-    async install(root, noShim = false) {
-        assert__WEBPACK_IMPORTED_MODULE_2__(root, "root is required")
-        const url = "https://get.sdkman.io?rcupdate=false"
-        const install = await this.downloadTool(url)
-
-        // Export the SDKMAN_DIR for installation location
-        await this.setEnv(root)
-
-        // Create an env copy so we don't call findRoot during the install
-        const env = { ...process__WEBPACK_IMPORTED_MODULE_3__.env, ...(await this.getEnv(root)) }
-
-        // Remove the root dir, because Sdkman will not install if it exists,
-        // which is dumb, but that's what we got
-        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(root)) await fs_promises__WEBPACK_IMPORTED_MODULE_4__.rmdir(root)
-
-        // Run the installer script
-        await this.subprocessShell(`bash ${install}`, { env: env })
-
-        // Shim the sdk cli function and add to the path
-        if (!noShim) this.shimSdk(root)
-
-        // Asynchronously clean up the downloaded installer script
-        fs_promises__WEBPACK_IMPORTED_MODULE_4__.rm(install, { recursive: true }).catch(() => {})
-
-        return root
-    }
-
-    /**
-     * Create a shim for the `sdk` CLI functions that otherwise would require an
-     * active shell.
-     *
-     * @param {string} root - The root directory of the sdkman installation.
-     */
-    shimSdk(root) {
-        const shim = path__WEBPACK_IMPORTED_MODULE_1__.join(root, "bin", "sdk")
-
-        // This is our actual sdk shim script
-        const shimTmpl = `\
-#!/bin/bash
-export SDKMAN_DIR="${root}"
-SDKMAN_INIT_FILE="$SDKMAN_DIR/bin/sdkman-init.sh"
-if [[ ! -s "$SDKMAN_INIT_FILE" ]]; then exit 13; fi
-if [[ -z "$SDKMAN_AVAILABLE" ]]; then source "$SDKMAN_INIT_FILE" >/dev/null; fi
-export -f
-sdk "$@"
-`
-        this.info(`Creating sdk shim at ${shim}`)
-
-        // Ensure we have a path to install the shim to, no matter what
-        fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync(path__WEBPACK_IMPORTED_MODULE_1__.dirname(shim), { recursive: true })
-        // Remove the shim if there's something there, it's probably bad
-        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(shim)) fs__WEBPACK_IMPORTED_MODULE_0__.rmSync(shim)
-        // Write our new shim
-        fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(shim, shimTmpl, { mode: 0o755 })
     }
 
     // determines the desired version of java that is being requested. if the desired version
@@ -20845,15 +20945,15 @@ sdk "$@"
 
     parseSdkmanrc(filename) {
         filename = filename || ".sdkmanrc"
-        filename = path__WEBPACK_IMPORTED_MODULE_1__.resolve(path__WEBPACK_IMPORTED_MODULE_1__.join(process__WEBPACK_IMPORTED_MODULE_3__.cwd(), filename))
+        filename = external_path_.resolve(external_path_.join(external_process_.cwd(), filename))
         // No file? We're done
-        if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(filename)) {
+        if (!external_fs_.existsSync(filename)) {
             this.debug(`No .sdkmanrc file found: ${filename}`)
             return
         }
 
         // Read our file and split it linewise
-        let data = fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(filename, { encoding: "utf8", flag: "r" })
+        let data = external_fs_.readFileSync(filename, { encoding: "utf8", flag: "r" })
         if (!data) return
         data = data.split("\n")
 
@@ -20894,63 +20994,10 @@ sdk "$@"
         if (!matched) return versions
         return [matched[1].replace("_", ".")]
     }
-
-    /**
-     * Ensure that the sdkman config file contains the settings necessary for
-     * executing in a non-interactive CI environment.
-     */
-    checkSdkmanSettings(configFile) {
-        // Easy case, no file, make sure the directory exists and write config
-        if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(configFile)) {
-            this.debug("writing sdkman config")
-            const configPath = path__WEBPACK_IMPORTED_MODULE_1__.dirname(configFile)
-            fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync(configPath, { recursive: true })
-            // This config is taken from the packer repo
-            fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(
-                configFile,
-                `\
-sdkman_auto_answer=true
-sdkman_auto_complete=true
-sdkman_auto_env=true
-sdkman_beta_channel=false
-sdkman_colour_enable=true
-sdkman_curl_connect_timeout=7
-sdkman_curl_max_time=10
-sdkman_debug_mode=false
-sdkman_insecure_ssl=false
-sdkman_rosetta2_compatible=false
-sdkman_selfupdate_enable=false`,
-            )
-            return
-        }
-
-        this.debug("sdkman config already present")
-        // If we get here, the file exists, and we just hope it's configured right
-        let data = fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(configFile, "utf8")
-        if (/sdkman_auto_answer=true/.test(data)) {
-            // We're good
-            this.debug("sdkman config okay")
-            return
-        }
-
-        this.debug("sdkman config misconfigured, maybe")
-        this.debug(fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(configFile, "utf8"))
-
-        this.debug("overwriting it because otherwise this tool won't work")
-        data = data.replace(
-            /sdkman_auto_answer=false/,
-            "sdkman_auto_answer=true",
-        )
-        data = data.replace(
-            /sdkman_selfupdate_enable=true/,
-            "sdkman_selfupdate_enable=true",
-        )
-        fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(configFile, data)
-    }
 }
 
 // Register the subclass in our tool list
-Java.register()
+Java.registerTier1()
 
 
 /***/ }),
@@ -21173,7 +21220,7 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
     }
 }
 
-Node.register()
+Node.registerTier1()
 
 
 /***/ }),
@@ -21297,7 +21344,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
 }
 
 // Register the subclass in our tool list
-Python.register()
+Python.registerTier1()
 
 
 /***/ }),
@@ -21378,7 +21425,7 @@ class Terraform extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .
 }
 
 // Register the subclass in our tool list
-Terraform.register()
+Terraform.registerTier1()
 
 
 /***/ }),
@@ -21423,7 +21470,9 @@ const silly = process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING
 
 // Superclass for all supported tools
 class Tool {
-    static registry = {}
+    static tier1Registry = {}
+    // Tools in tier2Registry to be setup after tier1 tools since tier2 tools depend upon tier1 tools.
+    static tier2Registry = {}
 
     /** Default values that we don't want to bury in the code. */
     static defaults = {
@@ -22121,16 +22170,31 @@ class Tool {
         return path
     }
 
-    // register adds name : subclass to the tool registry
-    static register() {
-        this.registry[this.tool] = this
+    // registerTier1 adds name : subclass to the Tier 1 tool registry. Tier 1 tools to be setup prior
+    // to Tier 2 tools since the latter depends upon the former.
+    static registerTier1() {
+        this.tier1Registry[this.tool] = this
     }
 
-    // all returns an array of objects containing the tool name and the bound
+    // registerTier2 adds name : subclass to the Tier 2 tool registry
+    static registerTier2() {
+        this.tier2Registry[this.tool] = this
+    }
+
+    // allTier1 returns an array of objects from tier1 containing the tool name and the bound
     // setup function of a tool instance
-    static all() {
-        return Object.keys(this.registry).map((k) => {
-            let tool = new this.registry[k]()
+    static allTier1() {
+        return Object.keys(this.tier1Registry).map((k) => {
+            let tool = new this.tier1Registry[k]()
+            return { name: k, setup: tool.setup.bind(tool) }
+        })
+    }
+
+    // allTier2 returns an array of objects from tier2 containing the tool name and the bound
+    // setup function of a tool instance
+    static allTier2() {
+        return Object.keys(this.tier2Registry).map((k) => {
+            let tool = new this.tier2Registry[k]()
             return { name: k, setup: tool.setup.bind(tool) }
         })
     }

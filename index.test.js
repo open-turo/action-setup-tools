@@ -25,6 +25,7 @@ describe("run", () => {
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
+            // TODO: skipping kotlin too
         })
     })
 
@@ -36,6 +37,19 @@ describe("run", () => {
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
+            // TODO: skipping kotlin too
+        })
+    })
+
+    it("skips synchronously", async () => {
+        return runAction("index", { RUN_ASYNC: "false" }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toMatch(/go.*skipping/)
+            expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/node.*skipping/)
+            expect(proc.stdout).toMatch(/python.*skipping/)
+            expect(proc.stdout).toMatch(/terraform.*skipping/)
+            // TODO: skipping kotlin too
         })
     })
 

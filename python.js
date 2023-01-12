@@ -79,4 +79,4 @@ export default class Python extends Tool {
 }
 
 // Register the subclass in our tool list
-Python.register()
+Python.registerTier1()

@@ -226,17 +226,17 @@ describe("tokenizeArgs", () => {
 
 describe("all", () => {
     it("gives us no tools when nothing is registered", () => {
-        const all = Tool.all()
-        expect(all).toHaveLength(0)
+        const allTier1 = Tool.allTier1()
+        expect(allTier1).toHaveLength(0)
     })
 
     it("gives us all the self-registered tools", () => {
         return import("./golang").then((module) => {
             // The dynamic import doesn't name the default export,
             // interestingly
-            module.default.register()
-            const all = Tool.all()
-            expect(all).toHaveLength(1)
+            module.default.registerTier1()
+            const allTier1 = Tool.allTier1()
+            expect(allTier1).toHaveLength(1)
         })
     })
 })
