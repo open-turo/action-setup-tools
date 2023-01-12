@@ -71,9 +71,7 @@ export default class Java extends Tool {
 
         // Sanity check that the java command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion(expectedVersion, (version) =>
-            this.parseJavaVersionString(expectedVersion, version),
-        )
+        await this.validateVersion(expectedVersion)
 
         // If we got this far, we have successfully configured java.
         core.setOutput(Java.tool, checkVersion)
@@ -215,7 +213,7 @@ sdk "$@"
         return found["java"]
     }
 
-    // parseJavaVersionString specially handles version string extraction
+    // versionParser specially handles version string extraction
     // because we have to map strings like 1.8.0_282 to 8.0.282 for the actual
     // SemVer comparison
     versionParser(text) {

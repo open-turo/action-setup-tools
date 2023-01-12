@@ -178,15 +178,15 @@ export default class Tool {
     async validateVersion(expected) {
         const command = this.toolVersion
         this.debug(`validateVersion: ${expected}: ${command}`)
-        let version = await this.version(command)
-        if (expected != version) {
+        let actual = await this.version(command)
+        if (expected != actual) {
             this.debug(`found command ${io.which(command.split(" ")[0])}`)
             // this.debug(process.env.PATH)
-            this.logAndExit(`version mismatch ${expected} != ${version}`)(
+            this.logAndExit(`version mismatch ${expected} != ${actual}`)(
                 new Error("version mismatch"),
             )
         }
-        return version
+        return actual
     }
 
     /**
