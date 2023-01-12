@@ -20727,9 +20727,7 @@ class Java extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
 
         // Sanity check that the java command works and its reported version matches what we have
         // requested to be in place.
-        await this.validateVersion(expectedVersion, (version) =>
-            this.parseJavaVersionString(expectedVersion, version),
-        )
+        await this.validateVersion(expectedVersion)
 
         // If we got this far, we have successfully configured java.
         _actions_core__WEBPACK_IMPORTED_MODULE_5__.setOutput(Java.tool, checkVersion)
@@ -20871,7 +20869,7 @@ sdk "$@"
         return found["java"]
     }
 
-    // parseJavaVersionString specially handles version string extraction
+    // versionParser specially handles version string extraction
     // because we have to map strings like 1.8.0_282 to 8.0.282 for the actual
     // SemVer comparison
     versionParser(text) {
@@ -21583,15 +21581,15 @@ class Tool {
     async validateVersion(expected) {
         const command = this.toolVersion
         this.debug(`validateVersion: ${expected}: ${command}`)
-        let version = await this.version(command)
-        if (expected != version) {
+        let actual = await this.version(command)
+        if (expected != actual) {
             this.debug(`found command ${_actions_io__WEBPACK_IMPORTED_MODULE_6__.which(command.split(" ")[0])}`)
             // this.debug(process.env.PATH)
-            this.logAndExit(`version mismatch ${expected} != ${version}`)(
+            this.logAndExit(`version mismatch ${expected} != ${actual}`)(
                 new Error("version mismatch"),
             )
         }
-        return version
+        return actual
     }
 
     /**
