@@ -129,15 +129,15 @@ describe("inline", () => {
 
     it("handles an error in serial", async () => {
         process.env.RUN_ASYNC = "false"
-        process.env.INPUT_GO = "8.0.282" // deliberately bad version
+        process.env.INPUT_GO = "8.0.123" // deliberately bad version
         return expect(run()).rejects.toThrow(
             "subprocess exited with non-zero code: goenv",
         )
     })
 
     it("handles multiple errors in parallel", async () => {
-        process.env.INPUT_GO = "8.0.282" // deliberately bad version
-        process.env.INPUT_NODE = "8.0.282" // deliberately bad version
+        process.env.INPUT_GO = "8.0.123" // deliberately bad version
+        process.env.INPUT_NODE = "8.0.234" // deliberately bad version
         return expect(run()).rejects.toThrow(
             /subprocess exited with non-zero code: .*/,
         )
@@ -145,7 +145,7 @@ describe("inline", () => {
 
     it("handles an error wrapped in runner", async () => {
         process.env.RUN_AUTO = "true"
-        process.env.INPUT_GO = "8.0.282" // deliberately bad version
+        process.env.INPUT_GO = "8.0.123" // deliberately bad version
         return expect(runner()).resolves.toMatch(
             /subprocess exited with non-zero code: goenv/,
         )
