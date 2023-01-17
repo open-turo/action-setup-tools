@@ -9,10 +9,6 @@ import SdkmanTool from "./sdkmantool.js"
 export default class Java extends SdkmanTool {
     static tool = "java"
     static toolVersion = "java -version"
-    static envVar = "SDKMAN_DIR"
-    static installer = "sdk"
-    static installerPath = ".sdkman"
-    static installerVersion = "sdk version"
 
     constructor() {
         super(Java.tool)
