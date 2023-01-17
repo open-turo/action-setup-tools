@@ -3,6 +3,7 @@ import core from "@actions/core"
 // Import all our tools to register them
 import "./golang.js"
 import "./java.js"
+import "./kotlin.js"
 import "./node.js"
 import "./python.js"
 import "./terraform.js"
@@ -17,10 +18,7 @@ export default async function run() {
     // Wait for all the setup() promises to resolve
     if (runAsync) {
         core.info("Running setups in parallel")
-        const setups = Tool.all().map((tool) =>
-            tool.setup(core.getInput(tool.name)),
-        )
-        return Promise.all(setups)
+        return setupToolsInParallel()
     } else {
         core.info("Running setups sequentially")
         let errs = []
@@ -28,15 +26,7 @@ export default async function run() {
             core.error(`caught error in setup: ${err}`)
             errs.push(err)
         }
-        for (let tool of Tool.all()) {
-            try {
-                // For some reason this catch call isn't working the way I expect,
-                // but I can't figure it out, so we double down with try/catch
-                await tool.setup(core.getInput(tool.name)).catch(errHandler)
-            } catch (err) {
-                errHandler(err)
-            }
-        }
+        await setupToolsSequentially(errHandler)
         // Escalate errors to make em someone else's problem
         core.debug(`errors caught: ${JSON.stringify(errs)}`)
         if (errs.length == 1) throw errs[0]
@@ -46,6 +36,124 @@ export default async function run() {
                     .map((err) => err.message)
                     .join("\n")}`,
             )
+        }
+    }
+}
+
+function setupToolsInParallel() {
+    const setups = Tool.all().map((tool) =>
+        tool.setup(core.getInput(tool.name)),
+    )
+    return Promise.all(setups)
+}
+
+//function getDependentToolMap() {
+//    let result = {}
+//    for (let tool of Tool.all()) {
+//        if (typeof tool.dependsOnName === "undefined") {
+//            core.debug(`!!! Tool ${tool.name} has no dependencies`)
+//        } else {
+//            // e.g. key of java, value of kotlin to indicate that java must be setup
+//            // before kotlin can be attempted.
+//            result[tool.dependsOnName] = tool.name
+//        }
+//    }
+//    return result
+//}
+//
+//function getToolMap() {
+//    let result = {}
+//    for (let tool of Tool.all()) {
+//        result[tool.name] = tool
+//    }
+//    return result
+//}
+//
+//async function setupToolsInParallel1() {
+//    const dependentToolMap = getDependentToolMap()
+//    core.debug("Dependent tool map : " + JSON.stringify(dependentToolMap))
+//    const toolMap = getToolMap()
+//    let result = []
+//    let setupPromise = null
+//    for (let tool of Tool.all()) {
+//        core.debug(`Considering tool ${tool.name} installation in parallel`)
+//        let dependentToolName = dependentToolMap[tool.name]
+//        core.debug(`Tool ${tool.name} is depended upon by ${dependentToolName}`)
+//        if (tool.dependsOnName) {
+//            core.debug(
+//                `Tool ${tool.name} depends on ${tool.dependsOnName} so skip parallel installation`,
+//            )
+//            continue
+//        }
+//        if (dependentToolName) {
+//            core.debug(
+//                `Must install ${tool.name} dependency before ${dependentToolName}`,
+//            )
+//            // Here we have found a dependency. We need to install this tool, await for that installation to complete
+//            // then kickoff the setup of the dependent tool.
+//            let toolVersionInstalled = await tool.setup(
+//                core.getInput(tool.name),
+//            )
+//            if (toolVersionInstalled) {
+//                core.debug(
+//                    `${tool.name} dependency installed, can now install ${dependentToolName}`,
+//                )
+//                let dependentTool = toolMap[dependentToolName]
+//                setupPromise = dependentTool.setup(
+//                    core.getInput(dependentTool.name),
+//                )
+//            }
+//        } else {
+//            // No tool dependency here, run setup asynchronously.
+//            core.debug(`Install ${tool.name} in parallel`)
+//            setupPromise = tool.setup(core.getInput(tool.name))
+//        }
+//        result.push(setupPromise)
+//    }
+//
+//    return result
+//}
+
+async function setupToolsSequentially(errorHandler) {
+    let toolSetupStatus = {}
+    const tools = Tool.all()
+    let numToolsRemainingToBeInstalled = tools.length
+    while (numToolsRemainingToBeInstalled > 0) {
+        core.debug(
+            `Number of tools yet to be installed ${numToolsRemainingToBeInstalled}`,
+        )
+        for (let tool of tools) {
+            core.debug(`Considering tool ${tool.name} for installation`)
+            try {
+                if (tool.dependsOnName) {
+                    core.debug(
+                        `Tool ${tool.name} depends on ${tool.dependsOnName}`,
+                    )
+                    if (
+                        typeof toolSetupStatus[tool.dependsOnName] !==
+                        "undefined"
+                    ) {
+                        core.debug(
+                            `Tool ${tool.name} setup execution now that dependency ${tool.dependsOnName} has been resolved`,
+                        )
+                    } else {
+                        core.debug(
+                            `Tool ${tool.name} setup deferred due to dependency on ${tool.dependsOnName}`,
+                        )
+                        // Will have to try this tool on the next loop
+                        continue
+                    }
+                }
+                let result = await tool
+                    .setup(core.getInput(tool.name))
+                    .catch(errorHandler)
+                toolSetupStatus[tool.name] = result
+            } catch (err) {
+                toolSetupStatus[tool.name] = err
+                errorHandler(err)
+            }
+            // One less tool remaining to be attempted to be installed
+            numToolsRemainingToBeInstalled--
         }
     }
 }

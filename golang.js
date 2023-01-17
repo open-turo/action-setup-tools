@@ -59,7 +59,7 @@ export default class Golang extends Tool {
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured golang.
-        core.setOutput(Golang.tool, checkVersion)
+        this.outputInstalledToolVersion(Golang.tool, checkVersion)
         this.info("golang success!")
         return checkVersion
     }

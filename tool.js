@@ -61,9 +61,11 @@ export default class Tool {
     /**
      * Make a new Tool instance.
      * @param {string} name - Tool name passed from subclass.
+     * @param {string} dependsOnName - The name of the Tool upon which the tool, identified by name, depends, if any.
      */
-    constructor(name) {
+    constructor(name, dependsOnName) {
         this.name = name
+        this.dependsOnName = dependsOnName
 
         const required = ["tool", "envVar", "installer"]
         for (const member of required) {
@@ -90,12 +92,17 @@ export default class Tool {
         core[method](msg)
     }
 
-    // determines the desired version of the tool (e.g. terraform) that is being requested.
-    // if the desired version presented to the action is present, that version is
-    // honored rather than the version presented in the version file (e.g. .terraform-version)
-    // that can be optionally present in the checked out repo itself.
-    // Second value returned indicates whether or not the version returned has overridden
-    // the version from the repositories tool version file.
+    /**
+     * Determines the desired version of the tool (e.g. terraform) that is being requested.
+     * if the desired version presented to the action is present (actionDesiredVersion),
+     * that version is honored rather than the version presented in the version file (e.g. .terraform-version)
+     * that can be optionally present in the checked out repo itself.
+     * @param {string} actionDesiredVersion - Desired version as presented to the action.
+     * @param {string} repoToolVersionFilename - The name of the tool config file in the checked out repo that can also
+     * house a desired version identifier.
+     * @returns {[string, boolean]} - First argument houses the desired version of the tool. Second value indicates
+     * whether or not the version returned has overridden the version from the repository's tool config file.
+     */
     getVersion(actionDesiredVersion, repoToolVersionFilename) {
         this.debug(`getVersion: ${repoToolVersionFilename}`)
         // Check if we have any version passed in to the action (can be null/empty string)
@@ -173,14 +180,20 @@ export default class Tool {
         })
     }
 
-    // validateVersion returns the found current version from a subprocess which
-    // is compared against the expected value given
-    async validateVersion(expected) {
+    /**
+     * validateVersion returns the found current version from a subprocess which
+     * is compared against the expected value given
+     * @param {string} expected - The expected version value.
+     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @returns {string} - The actual version string that was found.
+     */
+    async validateVersion(expected, soft) {
         const command = this.toolVersion
         this.debug(`validateVersion: ${expected}: ${command}`)
-        let actual = await this.version(command)
+        let actual = await this.version(command, soft)
         if (expected != actual) {
-            this.debug(`found command ${io.which(command.split(" ")[0])}`)
+            const pathToTool = await io.which(command.split(" ")[0])
+            this.debug(`found command ${pathToTool}`)
             // this.debug(process.env.PATH)
             this.logAndExit(`version mismatch ${expected} != ${actual}`)(
                 new Error("version mismatch"),
@@ -193,7 +206,7 @@ export default class Tool {
      * Return true if `version` is not empty.
      *
      * @param {string} version
-     * @returns
+     * @returns {boolean}
      */
     async haveVersion(version) {
         if (!version || version.length < 1) {
@@ -718,6 +731,15 @@ export default class Tool {
         return path
     }
 
+    /**
+     * Assigns installed tool version to an output parameter for consumers to consult.
+     * @param {string} toolName - The name of the tool (e.g. "kotlin") that has been installed.
+     * @param {string} installedVersion - The version of the tool (e.g. "1.7.21") that has been installed.
+     */
+    outputInstalledToolVersion(toolName, installedVersion) {
+        core.setOutput(toolName, installedVersion)
+    }
+
     // register adds name : subclass to the tool registry
     static register() {
         this.registry[this.tool] = this
@@ -728,7 +750,11 @@ export default class Tool {
     static all() {
         return Object.keys(this.registry).map((k) => {
             let tool = new this.registry[k]()
-            return { name: k, setup: tool.setup.bind(tool) }
+            return {
+                name: k,
+                dependsOnName: tool.dependsOnName,
+                setup: tool.setup.bind(tool),
+            }
         })
     }
 }

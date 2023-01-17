@@ -50,7 +50,7 @@ export default class Python extends Tool {
         await this.version("pip --version")
 
         // If we got this far, we have successfully configured python.
-        core.setOutput(Python.tool, checkVersion)
+        this.outputInstalledToolVersion(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
     }

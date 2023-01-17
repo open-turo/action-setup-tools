@@ -76,6 +76,7 @@ export default class Node extends Tool {
         await this.installYarn()
 
         // If we got this far, we have successfully configured node.
+        this.outputInstalledToolVersion(Node.tool, checkVersion)
         this.info("node success!")
         return checkVersion
     }

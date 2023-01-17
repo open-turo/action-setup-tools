@@ -12,7 +12,7 @@ import {
 } from "./testutil"
 
 Mute.all()
-const rcfile = ".sdkmanrc"
+const rcfile = Java.configFile
 
 describe("runAction java", () => {
     const desiredVersion = "17.0.5"
@@ -63,7 +63,7 @@ describe("Java", () => {
     })
 
     // This case is well covered by the parseSdkmanrc suite below
-    it.skip("parses a simple .sdkmanrc", async () => {
+    it("parses a simple .sdkmanrc", async () => {
         fs.writeFileSync(rcfile, "java=17.0.5-tem\n")
         const tool = new Java()
         cleaner.root = await tool.findRoot()

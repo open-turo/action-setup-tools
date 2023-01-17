@@ -13,6 +13,9 @@ outputs:
   java:
     description:
       The version of Java that has been installed and is ready for use.
+  kotlin:
+    description:
+      The version of Kotlin that has been installed and is ready for use.
   python:
     description:
       The version of Python that has been installed and is ready for use.

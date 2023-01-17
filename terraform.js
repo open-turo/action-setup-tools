@@ -41,7 +41,7 @@ export default class Terraform extends Tool {
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured terraform.
-        core.setOutput(Terraform.tool, checkVersion)
+        this.outputInstalledToolVersion(Terraform.tool, checkVersion)
         this.info("terraform success!")
         return checkVersion
     }

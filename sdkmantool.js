@@ -5,6 +5,7 @@ import process from "process"
 import fsPromises from "fs/promises"
 
 import Tool from "./tool.js"
+import core from "@actions/core"
 
 // abstract class
 export default class SdkmanTool extends Tool {
@@ -13,9 +14,10 @@ export default class SdkmanTool extends Tool {
     static installer = "sdk"
     static installerPath = ".sdkman"
     static installerVersion = "sdk version"
+    static configFile = ".sdkmanrc"
 
-    constructor(extendingTool) {
-        super(extendingTool)
+    constructor(extendingTool, dependsOnName) {
+        super(extendingTool, dependsOnName)
     }
 
     /**
@@ -159,5 +161,51 @@ sdkman_selfupdate_enable=false`,
             "sdkman_selfupdate_enable=true",
         )
         fs.writeFileSync(configFile, data)
+    }
+
+    parseSdkmanrcEntries(filename) {
+        filename = filename || SdkmanTool.configFile
+        filename = path.resolve(path.join(process.cwd(), filename))
+        // No file? We're done
+        if (!fs.existsSync(filename)) {
+            this.debug(`No ${SdkmanTool.configFile} file found: ${filename}`)
+            return null
+        }
+
+        // Read our file and split it linewise
+        let data = fs.readFileSync(filename, { encoding: "utf8", flag: "r" })
+        if (!data) return
+        data = data.split("\n")
+
+        // Iterate over each line and match against the regex
+        const find = new RegExp("^([^#=]+)=([^# ]+)$")
+        let found = {}
+        for (let line of data) {
+            const match = find.exec(line)
+            if (!match) continue
+            found[match[1]] = match[2]
+        }
+        this.debug(`Found .sdkmanrc entries ${JSON.stringify(found)}`)
+        return found
+    }
+
+    /**
+     * Determines the absolute local path to the tool that was installed by sdkman, within all of the sdkman tool
+     * installations.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     * @returns {string} - The absolute local path to the tool as maintained by sdkman.
+     */
+    getSdkmanToolPath(toolName) {
+        return `${process.env[this.envVar]}/candidates/${toolName}/current`
+    }
+
+    /**
+     * Prepends the absolute local path of the sdkman installed tool to the PATH so that the sdkman installed tool
+     * is located before any tool of the same name is installed by the Operating System or the like.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     */
+    prependSdkmanToolToPath(toolName) {
+        const sdkmanToolPath = this.getSdkmanToolPath(toolName)
+        core.addPath(`${sdkmanToolPath}/bin`)
     }
 }

@@ -59,6 +59,7 @@ jobs:
 | go        | The version of golang that has been installed and is ready for use.    |
 | node      | The verison of Node.js that has been installed and is ready for use.   |
 | java      | The version of Java that has been installed and is ready for use.      |
+| kotlin    | The version of Kotlin that has been installed and is ready for use.    |
 | python    | The version of Python that has been installed and is ready for use.    |
 | terraform | The version of Terraform that has been installed and is ready for use. |
 
@@ -80,14 +81,16 @@ The Go tools are made available via [goenv](https://github.com/syndbg/goenv).
 
 By default the action will look for a `.sdkmanrc` file in the root level
 directory. If present and if specifies a `java` version it will setup the sdkman
-environment to use that version of `java`, installing it if necessary. More
-information about `sdkman` can be found [here](https://sdkman.io/). Note that
-the java version identifier is an sdkman version identifier that includes a
-vendor identifier after a dash to indicate which vendor supplies the identified
+environment to use that version of `java`, installing it if necessary. If
+present and if specifies a `kotlin` version it will setup the sdkman environment
+to use that version of `kotlin`, installing it if necessary. Note that the java
+version identifier is an sdkman version identifier that includes a vendor
+identifier after a dash to indicate which vendor supplies the identified
 version.
 
-Note that because [sdkman](https://sdkman.io/) supports other tools like Kotlin,
-future support for additional tools via this Action is possible.
+More information about `sdkman` can be found [here](https://sdkman.io/). Note
+that because `sdkman` supports other tools, future support for additional tools
+via this Action is possible.
 
 ### Node.js
 
@@ -150,6 +153,7 @@ jobs:
               with:
                   go: 1.17.6
                   java: 17.0.2-tem
+                  kotlin: 1.6.21
                   node: 16.14.2
                   python: 3.10.2
                   terraform: 1.1.5
@@ -164,6 +168,7 @@ jobs:
 | go        | The desired version of golang to install.    | `false`  |         |
 | node      | The desired version of Node.js to install.   | `false`  |         |
 | java      | The desired version of Java to install.      | `false`  |         |
+| kotlin    | The desired version of Kotlin to install.    | `false`  |         |
 | python    | The desired version of Python to install.    | `false`  |         |
 | terraform | The desired version of Terraform to install. | `false`  |         |
 
@@ -174,6 +179,7 @@ jobs:
 | go        | The version of golang that has been installed and is ready for use.    |
 | node      | The version of Node.js that has been installed and is ready for use.   |
 | java      | The version of Java that has been installed and is ready for use.      |
+| kotlin    | The version of Kotlin that has been installed and is ready for use.    |
 | python    | The version of Python that has been installed and is ready for use.    |
 | terraform | The version of Terraform that has been installed and is ready for use. |
 

@@ -22,6 +22,7 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/kotlin.*skipping/)
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
@@ -33,9 +34,32 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/kotlin.*skipping/)
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
+        })
+    })
+
+    it("works with java and kotlin sequentially", async () => {
+        const desiredJavaVersion = "17.0.5"
+        const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
+        const desiredKotlinVersion = "1.7.21"
+        return runAction("index", {
+            RUN_ASYNC: "false",
+            INPUT_JAVA: sdkmanJavaVersionIdentifier,
+            INPUT_KOTLIN: desiredKotlinVersion,
+            ...ignoreInstalled(),
+        }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(
+                `java -version: ${desiredJavaVersion}`,
+            )
+            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                `kotlin -version: ${desiredKotlinVersion}`,
+            )
+            expect(proc.stdout).toContain("kotlin success!")
         })
     })
 
