@@ -58,6 +58,7 @@ export default class Tool {
      */
     constructor(name) {
         this.name = name
+        this.ignore_installed = Boolean(process.env.IGNORE_INSTALLED)
 
         const required = ["tool", "envVar", "installer"]
         for (const member of required) {
@@ -90,12 +91,17 @@ export default class Tool {
         core[method](msg)
     }
 
-    // determines the desired version of the tool (e.g. terraform) that is being requested.
-    // if the desired version presented to the action is present, that version is
-    // honored rather than the version presented in the version file (e.g. .terraform-version)
-    // that can be optionally present in the checked out repo itself.
-    // Second value returned indicates whether or not the version returned has overridden
-    // the version from the repositories tool version file.
+    /**
+     * Determines the desired version of the tool (e.g. terraform) that is being requested.
+     * if the desired version presented to the action is present (actionDesiredVersion),
+     * that version is honored rather than the version presented in the version file (e.g. .terraform-version)
+     * that can be optionally present in the checked out repo itself.
+     * @param {string} actionDesiredVersion - Desired version as presented to the action.
+     * @param {string} repoToolVersionFilename - The name of the tool config file in the checked out repo that can also
+     * house a desired version identifier.
+     * @returns {[string, boolean]} - First argument houses the desired version of the tool. Second value indicates
+     * whether or not the version returned has overridden the version from the repository's tool config file.
+     */
     getVersion(actionDesiredVersion, repoToolVersionFilename) {
         this.debug(`getVersion: ${repoToolVersionFilename}`)
         // Check if we have any version passed in to the action (can be null/empty string)
@@ -154,10 +160,12 @@ export default class Tool {
         let check = this.subprocessShell(cmd, { silent: true, env: env })
             .then((proc) => {
                 if (proc.stdout) {
+                    this.silly(`version stdout: '${proc.stdout}'`)
                     let stdoutVersions = this.versionParser(proc.stdout)
                     if (stdoutVersions) return stdoutVersions
                 }
                 if (proc.stderr) {
+                    this.silly(`version stderr: '${proc.stderr}'`)
                     return this.versionParser(proc.stderr)
                 }
                 this.debug("version: no output parsed")
@@ -173,6 +181,7 @@ export default class Tool {
 
         // This is a hard check and will fail the action
         if (!soft) {
+            this.silly(`version hard check`)
             return check.catch(this.logAndExit(`failed to get version: ${cmd}`))
         }
 
@@ -187,14 +196,20 @@ export default class Tool {
         })
     }
 
-    // validateVersion returns the found current version from a subprocess which
-    // is compared against the expected value given
-    async validateVersion(expected) {
+    /**
+     * validateVersion returns the found current version from a subprocess which
+     * is compared against the expected value given
+     * @param {string} expected - The expected version value.
+     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @returns {string} - The actual version string that was found.
+     */
+    async validateVersion(expected, soft) {
         const command = this.toolVersion
         this.debug(`validateVersion: ${expected}: ${command}`)
-        let actual = await this.version(command)
+        let actual = await this.version(command, soft)
         if (expected != actual) {
-            this.debug(`found command ${io.which(command.split(" ")[0])}`)
+            const pathToTool = await io.which(command.split(" ")[0])
+            this.debug(`found command ${pathToTool}`)
             // this.debug(process.env.PATH)
             this.logAndExit(`version mismatch ${expected} != ${actual}`)(
                 new Error("version mismatch"),
@@ -209,7 +224,8 @@ export default class Tool {
      * a matching SemVer compatible tool on the PATH.
      *
      * @param {string} version
-     * @returns
+     * @param {Object} opts
+     * @returns {boolean}
      */
     async haveVersion(version) {
         if (!version || version.length < 1) {
@@ -217,7 +233,8 @@ export default class Tool {
             return false
         }
         this.info(`Desired version: ${version}`)
-        if (process.env.IGNORE_INSTALLED) {
+
+        if (this.ignore_installed) {
             this.info("    not checking for installed tools")
             return true
         }
@@ -257,7 +274,7 @@ export default class Tool {
             throw err
         })
 
-        // this.debug(`found version: ${found}`)
+        this.debug(`found version: ${found}`)
         if (!found) return true
 
         // If the found version string satisifes semVer with our tool
@@ -290,6 +307,41 @@ export default class Tool {
     satifiesSemVer(expected, found) {
         const semantic = `^${expected.replace(/\.\d+$/, ".x")}`
         return semver.satisfies(found, semantic)
+    }
+
+    /**
+     * Return [haveVersion, checkVersion, isVersionOverridden] for a this Tool
+     * subclass.
+     *
+     * This requires the subclass to implement a .findCheckVersion(desiredVerison).
+     *
+     * @param {string} desiredVersion
+     * @returns {string, string, boolean} abc
+     */
+    async findVersion(desiredVersion) {
+        if (!desiredVersion) {
+            desiredVersion = core.getInput(this.name)
+            this.debug(
+                `${this.name} has no desiredVersion, using action input value ${desiredVersion}`,
+            )
+        }
+        const [checkVersion, isVersionOverridden] = await this.findCheckVersion(
+            desiredVersion,
+        )
+        const needVersion = await this.haveVersion(checkVersion)
+        return [needVersion, checkVersion, isVersionOverridden]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] from Tool subclass.
+     *
+     * This must be implemented for Tool().findVersion() to work.
+     *
+     * This will generally be a thin wrapper around getVersion() or the tool
+     * specific implementation.
+     */
+    async findCheckVersion() {
+        throw new Error("not implemented")
     }
 
     /**
@@ -733,6 +785,7 @@ export default class Tool {
         // it fails
         await fsPromises.rm(download, { recursive: true }).catch(() => {})
         // Return the extracted directory
+        this.debug(`downloadTool: extracted to ${dir}`)
         return dir
     }
 
@@ -784,6 +837,15 @@ export default class Tool {
         return path
     }
 
+    /**
+     * Assigns installed tool version to an output parameter for consumers to consult.
+     * @param {string} toolName - The name of the tool (e.g. "kotlin") that has been installed.
+     * @param {string} installedVersion - The version of the tool (e.g. "1.7.21") that has been installed.
+     */
+    outputInstalledToolVersion(toolName, installedVersion) {
+        core.setOutput(toolName, installedVersion)
+    }
+
     // register adds name : subclass to the tool registry
     static register() {
         this.registry[this.tool] = this
@@ -794,7 +856,10 @@ export default class Tool {
     static all() {
         return Object.keys(this.registry).map((k) => {
             let tool = new this.registry[k]()
-            return { name: k, setup: tool.setup.bind(tool) }
+            return {
+                name: k,
+                setup: tool.setup.bind(tool),
+            }
         })
     }
 }

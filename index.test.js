@@ -24,6 +24,7 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/kotlin.*skipping/)
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
@@ -35,9 +36,74 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
+            expect(proc.stdout).toMatch(/kotlin.*skipping/)
             expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
+        })
+    })
+
+    it("works with java and kotlin sequentially", async () => {
+        const desiredJavaVersion = "17.0.5"
+        const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
+        const desiredKotlinVersion = "1.7.21"
+        return runAction("index", {
+            RUN_ASYNC: "false",
+            INPUT_JAVA: sdkmanJavaVersionIdentifier,
+            INPUT_KOTLIN: desiredKotlinVersion,
+        }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(
+                `java -version: ${desiredJavaVersion}`,
+            )
+            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                `kotlin -version: ${desiredKotlinVersion}`,
+            )
+            expect(proc.stdout).toContain("kotlin success!")
+        })
+    })
+
+    it("works with java and kotlin in parallel", async () => {
+        const desiredJavaVersion = "17.0.5"
+        const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
+        const desiredKotlinVersion = "1.7.20"
+        return runAction("index", {
+            RUN_ASYNC: "true",
+            INPUT_JAVA: sdkmanJavaVersionIdentifier,
+            INPUT_KOTLIN: desiredKotlinVersion,
+        }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(
+                `java -version: ${desiredJavaVersion}`,
+            )
+            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                `kotlin -version: ${desiredKotlinVersion}`,
+            )
+            expect(proc.stdout).toContain("kotlin success!")
+        })
+    })
+
+    it("works with java and kotlin in parallel when IGNORE_INSTALLED is set", async () => {
+        const desiredJavaVersion = "17.0.5"
+        const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
+        const desiredKotlinVersion = "1.7.20"
+        return runAction("index", {
+            RUN_ASYNC: "true",
+            INPUT_JAVA: sdkmanJavaVersionIdentifier,
+            INPUT_KOTLIN: desiredKotlinVersion,
+            ...ignoreInstalled(),
+        }).then((proc) => {
+            expect(proc.stderr.toString()).toBe("")
+            expect(proc.stdout).toContain(
+                `java -version: ${desiredJavaVersion}`,
+            )
+            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                `kotlin -version: ${desiredKotlinVersion}`,
+            )
+            expect(proc.stdout).toContain("kotlin success!")
         })
     })
 
@@ -47,12 +113,14 @@ describe("run", () => {
         const sdkmanJavaVersionIdentifier = NO_TEST_JAVA
             ? ""
             : `${desiredJavaVersion}-tem`
+        const desiredKotlinVersion = "1.6.20"
         const tfVersion = "1.1.2"
         const nodeVersion = "16.13.2"
         const pyVersion = process.env.TEST_SLOW ? "3.10.2" : ""
         return runAction("index", {
             INPUT_GO: goVersion,
             INPUT_JAVA: sdkmanJavaVersionIdentifier,
+            INPUT_KOTLIN: desiredKotlinVersion,
             INPUT_NODE: nodeVersion,
             INPUT_TERRAFORM: tfVersion,
             INPUT_PYTHON: pyVersion,
@@ -69,6 +137,11 @@ describe("run", () => {
             expect(proc.stdout).toContain(
                 NO_TEST_JAVA ? "skipping" : "java success!",
             )
+            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                `kotlin -version: ${desiredKotlinVersion}`,
+            )
+            expect(proc.stdout).toContain("kotlin success!")
             expect(proc.stdout).toContain(`node --version: ${nodeVersion}`)
             expect(proc.stdout).toContain("node success!")
             expect(proc.stdout).toContain(`terraform --version: ${tfVersion}`)

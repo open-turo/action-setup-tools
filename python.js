@@ -16,6 +16,15 @@ export default class Python extends Tool {
         super(Python.tool)
     }
 
+    /**
+     * The entry point to request that Python be installed. The version of Python that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .python-version file.
+     * Assumes pyenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Python as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "3.7.6".
+     * @returns {string} - The actual version of Python that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -59,7 +68,7 @@ export default class Python extends Tool {
         await this.version("pip --version")
 
         // If we got this far, we have successfully configured python.
-        core.setOutput(Python.tool, checkVersion)
+        this.outputInstalledToolVersion(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
     }

@@ -5,6 +5,7 @@ import process from "process"
 import fsPromises from "fs/promises"
 
 import Tool from "./tool.js"
+import core from "@actions/core"
 
 // abstract class
 export default class SdkmanTool extends Tool {
@@ -13,6 +14,7 @@ export default class SdkmanTool extends Tool {
     static installer = "sdk"
     static installerPath = ".sdkman"
     static installerVersion = "sdk version"
+    static configFile = ".sdkmanrc"
 
     constructor(extendingTool) {
         super(extendingTool)
@@ -135,6 +137,7 @@ sdk "$@"
 sdkman_auto_answer=true
 sdkman_auto_complete=true
 sdkman_auto_env=true
+sdkman_auto_update=false
 sdkman_beta_channel=false
 sdkman_colour_enable=true
 sdkman_curl_connect_timeout=7
@@ -160,14 +163,77 @@ sdkman_selfupdate_enable=false`,
         this.debug(fs.readFileSync(configFile, "utf8"))
 
         this.debug("overwriting it because otherwise this tool won't work")
+        // If it's set to false, override with true
+        if (/sdkman_auto_answer=false/.test(data)) {
+            data = data.replace(
+                /sdkman_auto_answer=false/,
+                "sdkman_auto_answer=true",
+            )
+        } else {
+            // Append it to the end of the file
+            data += "\nsdkman_auto_answer=true"
+        }
         data = data.replace(
-            /sdkman_auto_answer=false/,
-            "sdkman_auto_answer=true",
+            /sdkman_selfupdate_feature=true/,
+            "sdkman_selfupdate_feature=false",
         )
+        // This is deprecated but we want to make sure it's not enabled since
+        // it's still supported
         data = data.replace(
             /sdkman_selfupdate_enable=true/,
-            "sdkman_selfupdate_enable=true",
+            "sdkman_selfupdate_enable=false",
+        )
+        data = data.replace(
+            /sdkman_auto_update=true/,
+            "sdkman_auto_update=false",
         )
         fs.writeFileSync(configFile, data)
+        this.debug(fs.readFileSync(configFile, "utf8"))
+    }
+
+    parseSdkmanrcEntries(filename) {
+        filename = filename || SdkmanTool.configFile
+        filename = path.resolve(path.join(process.cwd(), filename))
+        // No file? We're done
+        if (!fs.existsSync(filename)) {
+            this.debug(`No ${SdkmanTool.configFile} file found: ${filename}`)
+            return null
+        }
+
+        // Read our file and split it linewise
+        let data = fs.readFileSync(filename, { encoding: "utf8", flag: "r" })
+        if (!data) return
+        data = data.split("\n")
+
+        // Iterate over each line and match against the regex
+        const find = new RegExp("^([^#=]+)=([^# ]+)$")
+        let found = {}
+        for (let line of data) {
+            const match = find.exec(line)
+            if (!match) continue
+            found[match[1]] = match[2]
+        }
+        this.debug(`Found .sdkmanrc entries ${JSON.stringify(found)}`)
+        return found
+    }
+
+    /**
+     * Determines the absolute local path to the tool that was installed by sdkman, within all of the sdkman tool
+     * installations.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     * @returns {string} - The absolute local path to the tool as maintained by sdkman.
+     */
+    getSdkmanToolPath(toolName) {
+        return `${process.env[this.envVar]}/candidates/${toolName}/current`
+    }
+
+    /**
+     * Prepends the absolute local path of the sdkman installed tool to the PATH so that the sdkman installed tool
+     * is located before any tool of the same name is installed by the Operating System or the like.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     */
+    prependSdkmanToolToPath(toolName) {
+        const sdkmanToolPath = this.getSdkmanToolPath(toolName)
+        core.addPath(`${sdkmanToolPath}/bin`)
     }
 }

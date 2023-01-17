@@ -21,6 +21,15 @@ export default class Node extends Tool {
         super(Node.tool)
     }
 
+    /**
+     * The entry point to request that Node be installed. The version of Node that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .node-version or .nvmrc file.
+     * Assumes nodenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Node as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "18".
+     * @returns {string} - The actual version of Node that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = await this.getNodeVersion(
             desiredVersion,
@@ -78,6 +87,7 @@ export default class Node extends Tool {
         await this.installYarn()
 
         // If we got this far, we have successfully configured node.
+        this.outputInstalledToolVersion(Node.tool, checkVersion)
         this.info("node success!")
         return checkVersion
     }

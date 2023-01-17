@@ -3,6 +3,7 @@ import core from "@actions/core"
 // Import all our tools to register them
 import "./golang.js"
 import "./java.js"
+import "./kotlin.js"
 import "./node.js"
 import "./python.js"
 import "./terraform.js"
@@ -17,10 +18,7 @@ export default async function run() {
     // Wait for all the setup() promises to resolve
     if (runAsync) {
         core.info("Running setups in parallel")
-        const setups = Tool.all().map((tool) =>
-            tool.setup(core.getInput(tool.name)),
-        )
-        return Promise.all(setups)
+        return setupToolsInParallel()
     } else {
         core.info("Running setups sequentially")
         let errs = []
@@ -28,15 +26,7 @@ export default async function run() {
             core.error(`caught error in setup: ${err}`)
             errs.push(err)
         }
-        for (let tool of Tool.all()) {
-            try {
-                // For some reason this catch call isn't working the way I expect,
-                // but I can't figure it out, so we double down with try/catch
-                await tool.setup(core.getInput(tool.name)).catch(errHandler)
-            } catch (err) {
-                errHandler(err)
-            }
-        }
+        await setupToolsSequentially(errHandler)
         // Escalate errors to make em someone else's problem
         core.debug(`errors caught: ${JSON.stringify(errs)}`)
         if (errs.length == 1) throw errs[0]
@@ -46,6 +36,27 @@ export default async function run() {
                     .map((err) => err.message)
                     .join("\n")}`,
             )
+        }
+    }
+}
+
+function setupToolsInParallel() {
+    const setups = Tool.all().map((tool) =>
+        // TODO: Once all tools implement findVersion/findCheckVersion calls we
+        // can remove core.getInput from here
+        tool.setup(core.getInput(tool.name)),
+    )
+    return Promise.all(setups)
+}
+
+async function setupToolsSequentially(errorHandler) {
+    for (let tool of Tool.all()) {
+        try {
+            // For some reason this catch call isn't working the way I expect,
+            // but I can't figure it out, so we double down with try/catch
+            await tool.setup(core.getInput(tool.name)).catch(errorHandler)
+        } catch (err) {
+            errorHandler(err)
         }
     }
 }

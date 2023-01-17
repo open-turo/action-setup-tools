@@ -12,7 +12,7 @@ import {
 } from "./testutil"
 
 Mute.all()
-const rcfile = ".sdkmanrc"
+const rcfile = Java.configFile
 
 const describeJava = process.env.NO_TEST_JAVA ? describe.skip : describe
 
@@ -62,21 +62,6 @@ describeJava("Java", () => {
         ignoreInstalled()
         const tool = new Java()
         return tool.setup()
-    })
-
-    // This case is well covered by the parseSdkmanrc suite below
-    it.skip("parses a simple .sdkmanrc", async () => {
-        fs.writeFileSync(rcfile, "java=17.0.5-tem\n")
-        const tool = new Java()
-        cleaner.root = await tool.findRoot()
-        return tool.setup()
-    })
-
-    // This case is well covered by the validateVersion suite below
-    it.skip("works with java 1.8 nonsense", async () => {
-        const tool = new Java()
-        cleaner.root = await tool.findRoot()
-        return tool.setup("8.0.282-librca")
     })
 
     it("works and sets a sensible JAVA_HOME", async () => {

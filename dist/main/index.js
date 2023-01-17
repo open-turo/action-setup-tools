@@ -20476,9 +20476,15 @@ class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         super(Golang.tool)
     }
 
-    // desiredVersion : The desired version of golang, e.g. "1.16.4"
-    // assumes goenv is already installed on the self-hosted runner, is a failure
-    // condition otherwise.
+    /**
+     * The entry point to request that Golang be installed. The version of Golang that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .go-version file.
+     * Assumes goenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Golang as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "1.16.4".
+     * @returns {string} - The actual version of Golang that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -20520,7 +20526,7 @@ class Golang extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured golang.
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput(Golang.tool, checkVersion)
+        this.outputInstalledToolVersion(Golang.tool, checkVersion)
         this.info("golang success!")
         return checkVersion
     }
@@ -20564,14 +20570,16 @@ __nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependen
 /* harmony export */ });
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2186);
 /* harmony import */ var _golang_js__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3127);
-/* harmony import */ var _java_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3421);
-/* harmony import */ var _node_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(6562);
-/* harmony import */ var _python_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(11);
-/* harmony import */ var _terraform_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(5105);
-/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(4067);
+/* harmony import */ var _java_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(5745);
+/* harmony import */ var _kotlin_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(6606);
+/* harmony import */ var _node_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(6562);
+/* harmony import */ var _python_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(11);
+/* harmony import */ var _terraform_js__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(5105);
+/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(4067);
 
 
 // Import all our tools to register them
+
 
 
 
@@ -20588,10 +20596,7 @@ async function run() {
     // Wait for all the setup() promises to resolve
     if (runAsync) {
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups in parallel")
-        const setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all().map((tool) =>
-            tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)),
-        )
-        return Promise.all(setups)
+        return setupToolsInParallel()
     } else {
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups sequentially")
         let errs = []
@@ -20599,15 +20604,7 @@ async function run() {
             _actions_core__WEBPACK_IMPORTED_MODULE_0__.error(`caught error in setup: ${err}`)
             errs.push(err)
         }
-        for (let tool of _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all()) {
-            try {
-                // For some reason this catch call isn't working the way I expect,
-                // but I can't figure it out, so we double down with try/catch
-                await tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)).catch(errHandler)
-            } catch (err) {
-                errHandler(err)
-            }
-        }
+        await setupToolsSequentially(errHandler)
         // Escalate errors to make em someone else's problem
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.debug(`errors caught: ${JSON.stringify(errs)}`)
         if (errs.length == 1) throw errs[0]
@@ -20617,6 +20614,27 @@ async function run() {
                     .map((err) => err.message)
                     .join("\n")}`,
             )
+        }
+    }
+}
+
+function setupToolsInParallel() {
+    const setups = _tool_js__WEBPACK_IMPORTED_MODULE_7__/* ["default"].all */ .Z.all().map((tool) =>
+        // TODO: Once all tools implement findVersion/findCheckVersion calls we
+        // can remove core.getInput from here
+        tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)),
+    )
+    return Promise.all(setups)
+}
+
+async function setupToolsSequentially(errorHandler) {
+    for (let tool of _tool_js__WEBPACK_IMPORTED_MODULE_7__/* ["default"].all */ .Z.all()) {
+        try {
+            // For some reason this catch call isn't working the way I expect,
+            // but I can't figure it out, so we double down with try/catch
+            await tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)).catch(errorHandler)
+        } catch (err) {
+            errorHandler(err)
         }
     }
 }
@@ -20643,211 +20661,22 @@ __webpack_async_result__();
 
 /***/ }),
 
-/***/ 3421:
-/***/ ((__unused_webpack___webpack_module__, __unused_webpack___webpack_exports__, __nccwpck_require__) => {
+/***/ 5745:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
-
-// UNUSED EXPORTS: default
-
-// EXTERNAL MODULE: external "fs"
-var external_fs_ = __nccwpck_require__(7147);
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(1017);
-// EXTERNAL MODULE: external "process"
-var external_process_ = __nccwpck_require__(7282);
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: external "assert"
-var external_assert_ = __nccwpck_require__(9491);
-// EXTERNAL MODULE: external "fs/promises"
-var promises_ = __nccwpck_require__(3292);
-// EXTERNAL MODULE: ./tool.js
-var tool = __nccwpck_require__(4067);
-;// CONCATENATED MODULE: ./sdkmantool.js
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "Z": () => (/* binding */ Java)
+/* harmony export */ });
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(1017);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(2186);
+/* harmony import */ var _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(6126);
 
 
 
 
 
 
-
-
-// abstract class
-class SdkmanTool extends tool/* default */.Z {
-    static tool = "sdkman"
-    static envVar = "SDKMAN_DIR"
-    static installer = "sdk"
-    static installerPath = ".sdkman"
-    static installerVersion = "sdk version"
-
-    constructor(extendingTool) {
-        super(extendingTool)
-    }
-
-    /**
-     * Return the path to the tool installation directory, if found, otherwise
-     * return the default path to the tool.
-     *
-     * @returns {String} - Path to the root folder of the tool.
-     */
-    async findRoot() {
-        ;(function () {
-            // Shortcut this
-            if (this.sdkShimChecked) return
-
-            // All of this is to check if we have a sdkman install that hasn't
-            // been shimmed which won't be found correctly
-            let check = this.defaultRoot
-            this.debug(`checking with defaultRoot: ${check}`)
-
-            if (!external_fs_.existsSync(check)) return
-            this.debug("defaultRoot exists")
-
-            check = external_path_.join(check, "bin", "sdkman-init.sh")
-            if (!external_fs_.existsSync(check)) return
-            this.debug("sdkman-init.sh exists")
-
-            check = external_path_.join(this.defaultRoot, "bin", "sdk")
-            if (external_fs_.existsSync(check)) {
-                this.debug(`sdk shim found at: ${check}`)
-                this.sdkShimChecked = true
-                return
-            }
-            this.debug("sdk shim does not exist")
-
-            this.shimSdk(this.defaultRoot)
-        }.bind(this)())
-
-        return super.findRoot()
-    }
-
-    /**
-     * Download and configures sdkman.
-     *
-     * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
-     * @param  {string} noShim - Don't install the `sdk` shim.
-     * @return {string} The value of SDKMAN_DIR.
-     */
-    async install(root, noShim = false) {
-        external_assert_(root, "root is required")
-        const url = "https://get.sdkman.io?rcupdate=false"
-        const install = await this.downloadTool(url)
-
-        // Export the SDKMAN_DIR for installation location
-        await this.setEnv(root)
-
-        // Create an env copy so we don't call findRoot during the install
-        const env = { ...external_process_.env, ...(await this.getEnv(root)) }
-
-        // Remove the root dir, because Sdkman will not install if it exists,
-        // which is dumb, but that's what we got
-        if (external_fs_.existsSync(root)) await promises_.rmdir(root)
-
-        // Run the installer script
-        await this.subprocessShell(`bash ${install}`, { env: env })
-
-        // Shim the sdk cli function and add to the path
-        if (!noShim) this.shimSdk(root)
-
-        // Asynchronously clean up the downloaded installer script
-        promises_.rm(install, { recursive: true }).catch(() => {})
-
-        return root
-    }
-
-    /**
-     * Create a shim for the `sdk` CLI functions that otherwise would require an
-     * active shell.
-     *
-     * @param {string} root - The root directory of the sdkman installation.
-     */
-    shimSdk(root) {
-        const shim = external_path_.join(root, "bin", "sdk")
-
-        // This is our actual sdk shim script
-        const shimTmpl = `\
-#!/bin/bash
-export SDKMAN_DIR="${root}"
-SDKMAN_INIT_FILE="$SDKMAN_DIR/bin/sdkman-init.sh"
-if [[ ! -s "$SDKMAN_INIT_FILE" ]]; then exit 13; fi
-if [[ -z "$SDKMAN_AVAILABLE" ]]; then source "$SDKMAN_INIT_FILE" >/dev/null; fi
-export -f
-sdk "$@"
-`
-        this.info(`Creating sdk shim at ${shim}`)
-
-        // Ensure we have a path to install the shim to, no matter what
-        external_fs_.mkdirSync(external_path_.dirname(shim), { recursive: true })
-        // Remove the shim if there's something there, it's probably bad
-        if (external_fs_.existsSync(shim)) external_fs_.rmSync(shim)
-        // Write our new shim
-        external_fs_.writeFileSync(shim, shimTmpl, { mode: 0o755 })
-    }
-
-    /**
-     * Ensure that the sdkman config file contains the settings necessary for
-     * executing in a non-interactive CI environment.
-     */
-    checkSdkmanSettings(configFile) {
-        // Easy case, no file, make sure the directory exists and write config
-        if (!external_fs_.existsSync(configFile)) {
-            this.debug("writing sdkman config")
-            const configPath = external_path_.dirname(configFile)
-            external_fs_.mkdirSync(configPath, { recursive: true })
-            // This config is taken from the packer repo
-            external_fs_.writeFileSync(
-                configFile,
-                `\
-sdkman_auto_answer=true
-sdkman_auto_complete=true
-sdkman_auto_env=true
-sdkman_beta_channel=false
-sdkman_colour_enable=true
-sdkman_curl_connect_timeout=7
-sdkman_curl_max_time=10
-sdkman_debug_mode=false
-sdkman_insecure_ssl=false
-sdkman_rosetta2_compatible=false
-sdkman_selfupdate_enable=false`,
-            )
-            return
-        }
-
-        this.debug("sdkman config already present")
-        // If we get here, the file exists, and we just hope it's configured right
-        let data = external_fs_.readFileSync(configFile, "utf8")
-        if (/sdkman_auto_answer=true/.test(data)) {
-            // We're good
-            this.debug("sdkman config okay")
-            return
-        }
-
-        this.debug("sdkman config misconfigured, maybe")
-        this.debug(external_fs_.readFileSync(configFile, "utf8"))
-
-        this.debug("overwriting it because otherwise this tool won't work")
-        data = data.replace(
-            /sdkman_auto_answer=false/,
-            "sdkman_auto_answer=true",
-        )
-        data = data.replace(
-            /sdkman_selfupdate_enable=true/,
-            "sdkman_selfupdate_enable=true",
-        )
-        external_fs_.writeFileSync(configFile, data)
-    }
-}
-
-;// CONCATENATED MODULE: ./java.js
-
-
-
-
-
-
-
-
-class Java extends SdkmanTool {
+class Java extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
     static tool = "java"
     static toolVersion = "java -version"
 
@@ -20855,28 +20684,32 @@ class Java extends SdkmanTool {
         super(Java.tool)
     }
 
-    // desiredVersion : The identifier for the specific desired version of java as
-    // known to sdkman such as "11.0.2-open" for version 11.0.2 from java.net.
-    // assumes sdkman is already installed on the self-hosted runner, is a failure
-    // condition otherwise.
+    /**
+     * The entry point to request that Java be installed. The version of Java that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .sdkmanrc file.
+     * Assumes sdkman is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of java as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "11.0.2-open".
+     * @returns {string} - The actual version of Java that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] =
-            this.getJavaVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) {
-            return checkVersion
-        }
+        const [needInstall, checkVersion, isVersionOverridden] =
+            await this.findVersion(desiredVersion)
+        // If we don't desire this tool or it's already present with a matching version
+        if (!needInstall) return checkVersion
 
         // Make sure that sdkman is installed
         await this.findInstaller()
 
         // This doesn't fail hard, but it probably should
         this.checkSdkmanSettings(
-            external_path_.join(`${await this.findRoot()}`, "etc/config"),
+            path__WEBPACK_IMPORTED_MODULE_0__.join(`${await this.findRoot()}`, "etc/config"),
         )
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            core.exportVariable("JAVA_VERSION", checkVersion)
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("JAVA_VERSION", checkVersion)
         }
 
         // If sdkman is requested to install the same version of java more than once,
@@ -20894,12 +20727,10 @@ class Java extends SdkmanTool {
         )
 
         // export JAVA_HOME to force using the correct version of java
-        const javaHome = `${external_process_.env[this.envVar]}/candidates/java/current`
-        core.exportVariable("JAVA_HOME", javaHome)
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("JAVA_HOME", this.getSdkmanToolPath(Java.tool))
 
-        // Augment path so that the current version of java according to sdkman will be
-        // the version found.
-        core.addPath(`${javaHome}/bin`)
+        // Augment path so that the current version of java according to sdkman will be the version found.
+        this.prependSdkmanToolToPath(Java.tool)
 
         // Remove the trailing -blah from the Java version string
         const expectedVersion = checkVersion.replace(/[-_][^-_]+$/, "")
@@ -20909,53 +20740,49 @@ class Java extends SdkmanTool {
         await this.validateVersion(expectedVersion)
 
         // If we got this far, we have successfully configured java.
-        core.setOutput(Java.tool, checkVersion)
+        this.outputInstalledToolVersion(Java.tool, checkVersion)
         this.info("java success!")
         return checkVersion
     }
 
-    // determines the desired version of java that is being requested. if the desired version
-    // presented to the action is present, that version is honored rather than the version
-    // presented in the .sdkmanrc file that can be optionally present in the checked out repo itself.
-    // Second value returned indicates whether or not the version returned has overridden
-    // the version from the .sdkmanrc file.
+    /**
+     * Determines the desired version of java that is being requested. if the desired version
+     * presented to the action is present, that version is honored rather than the version
+     * presented in the .sdkmanrc file that can be optionally present in the checked out repo itself.
+     * Second value returned indicates whether or not the version returned has overridden
+     * the version from the .sdkmanrc file.
+     * @param {string} actionDesiredVersion - This is the desired version of java as presented directly to the
+     * action.
+     * @returns {[string, boolean]} - The overall desired version of java that has been found, and the boolean
+     * indicates whether or not that version is overriding the value found in the .sdkmanrc file.
+     */
     getJavaVersion(actionDesiredVersion) {
         // Check if we have any version passed in to the action (can be null/empty string)
         if (actionDesiredVersion) return [actionDesiredVersion, true]
 
         const readJavaVersion = this.parseSdkmanrc()
         if (readJavaVersion) {
-            this.debug(`Found java version ${readJavaVersion} in .sdkmanrc`)
+            this.debug(
+                `Found java version ${readJavaVersion} in ${Java.configFile}`,
+            )
             return [readJavaVersion, false]
         }
         // No version has been specified
         return [null, null]
     }
 
+    /**
+     * Return [checkVersion, isVersionOverridden] specific to this Tool subclass.
+     *
+     * @param {string} desiredVersion
+     */
+    async findCheckVersion(desiredVersion) {
+        return this.getJavaVersion(desiredVersion)
+    }
+
     parseSdkmanrc(filename) {
-        filename = filename || ".sdkmanrc"
-        filename = external_path_.resolve(external_path_.join(external_process_.cwd(), filename))
-        // No file? We're done
-        if (!external_fs_.existsSync(filename)) {
-            this.debug(`No .sdkmanrc file found: ${filename}`)
-            return
-        }
-
-        // Read our file and split it linewise
-        let data = external_fs_.readFileSync(filename, { encoding: "utf8", flag: "r" })
-        if (!data) return
-        data = data.split("\n")
-
-        // Iterate over each line and match against the regex
-        const find = new RegExp("^([^#=]+)=([^# ]+)$")
-        let found = {}
-        for (let line of data) {
-            const match = find.exec(line)
-            if (!match) continue
-            found[match[1]] = match[2]
-        }
-        this.debug(`Found .sdkmanrc entries ${JSON.stringify(found)}`)
-        return found["java"]
+        let entries = this.parseSdkmanrcEntries(filename)
+        return entries ? entries["java"] : null
     }
 
     // versionParser specially handles version string extraction
@@ -20987,6 +20814,195 @@ class Java extends SdkmanTool {
 
 // Register the subclass in our tool list
 Java.register()
+
+
+/***/ }),
+
+/***/ 6606:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+/* unused harmony export default */
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(1017);
+/* harmony import */ var _java_js__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(5745);
+/* harmony import */ var _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(6126);
+
+
+
+
+
+class Kotlin extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
+    static tool = "kotlin"
+    static toolVersion = "kotlin -version"
+
+    constructor() {
+        super(Kotlin.tool)
+    }
+
+    /**
+     * The entry point to request that Kotlin be installed. The version of Kotlin that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .sdkmanrc file.
+     * Assumes sdkman is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of kotlin as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "1.6.21"
+     * @returns {string} - The actual version of Kotlin that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
+    async setup(desiredVersion) {
+        const [checkVersion] = this.getKotlinVersion(desiredVersion)
+        if (!(await this.haveVersion(checkVersion))) {
+            return checkVersion
+        }
+
+        // Make sure we have Java requested, and by the time this succeeds we are guaranteed to have Java installed
+        await this.waitForJavaInstallation()
+
+        // Make sure that sdkman is installed
+        await this.findInstaller()
+
+        // This doesn't fail hard, but it probably should
+        this.checkSdkmanSettings(
+            path__WEBPACK_IMPORTED_MODULE_0__.join(`${await this.findRoot()}`, "etc/config"),
+        )
+
+        // If sdkman is requested to install the same version of kotlin more than once,
+        // all subsequent attempts will be a no-op and sdkman will report a message of the
+        // form "kotlin 1.6.21 is already installed".
+        await this.subprocessShell(`sdk install kotlin ${checkVersion}`).catch(
+            this.logAndExit(`failed to install: ${checkVersion}`),
+        )
+
+        // Set the "current" default Kotlin version to the desired version
+        await this.subprocessShell(`sdk default kotlin ${checkVersion}`).catch(
+            this.logAndExit(`failed to set default: ${checkVersion}`),
+        )
+
+        // Augment path so that the current version of kotlin according to sdkman will be the version found.
+        this.prependSdkmanToolToPath(Kotlin.tool)
+
+        // Sanity check that the kotlin command works and its reported version matches what we have
+        // requested to be in place.
+        await this.validateVersion(checkVersion, false)
+
+        // If we got this far, we have successfully configured kotlin.
+        this.outputInstalledToolVersion(Kotlin.tool, checkVersion)
+        this.info("kotlin success!")
+        return checkVersion
+    }
+
+    /**
+     * Determines the desired version of kotlin that is being requested. if the desired version
+     * presented to the action is present, that version is honored rather than the version
+     * presented in the .sdkmanrc file that can be optionally present in the checked out repo itself.
+     * Second value returned indicates whether or not the version returned has overridden
+     * the version from the .sdkmanrc file.
+     * @param {string} actionDesiredVersion - This is the desired version of kotlin as presented directly to the
+     * action.
+     * @returns {[string, boolean]} - The overall desired version of kotlin that has been found, and the boolean
+     * indicates whether or not that version is overriding the value found in the .sdkmanrc file.
+     */
+    getKotlinVersion(actionDesiredVersion) {
+        // Check if we have any version passed in to the action (can be null/empty string)
+        if (actionDesiredVersion) return [actionDesiredVersion, true]
+
+        const readKotlinVersion = this.parseSdkmanrc()
+        if (readKotlinVersion) {
+            this.debug(
+                `Found kotlin version ${readKotlinVersion} in ${Kotlin.configFile}`,
+            )
+            return [readKotlinVersion, false]
+        }
+        // No version has been specified
+        return [null, null]
+    }
+
+    /**
+     * Checks if we have Java or we're trying to install it.
+     * @returns {string} - The installed Java version
+     */
+    async waitForJavaInstallation() {
+        const _this = this
+        const findJavaVersion = async () => {
+            // Find if we have Java installed or we've specified a version to install
+            const java_tool = new _java_js__WEBPACK_IMPORTED_MODULE_1__/* ["default"] */ .Z()
+            // We can't ignore installed or we get stuck in a loop finding Java
+            java_tool.ignore_installed = false
+            // Find our version of Java if they exist
+            const [needJavaInstalled, javaVersion] =
+                await java_tool.findVersion()
+            // If we don't have a version we've found or are installing, that's an error
+            if (!javaVersion) {
+                throw new Error("Java is required for Kotlin")
+            }
+            _this.debug(
+                `Found Java '${javaVersion}' and need Java installed is ${needJavaInstalled}`,
+            )
+            // If don't need to install Java because it's already installed, we're done
+            return !needJavaInstalled ? javaVersion : null
+        }
+
+        // JS style doesn't do caps constants in function scopes
+        const MAX_WAIT_TIME_IN_SECONDS = 300
+        let numberSecondsElapsed = 0
+        this.debug("Waiting for Java installation to be found in place")
+        for (
+            let attempts = 0;
+            numberSecondsElapsed < MAX_WAIT_TIME_IN_SECONDS;
+            attempts++
+        ) {
+            // If we have Java, break the loop return success
+            let javaVersion = await findJavaVersion()
+            if (javaVersion) {
+                this.info(`Found Java '${javaVersion}', continuing with Kotlin`)
+                return
+            }
+
+            // If we desired Java, and we don't have a version found yet, sleep one second and retry
+            let timestamp = new Date().toLocaleString()
+            this.debug(
+                `Wait for five seconds before retrying Java install @ ${timestamp}`,
+            )
+            await new Promise((r) => setTimeout(r, 5000))
+            // No need to compute true wall time, close enough.
+            numberSecondsElapsed += 5
+        }
+    }
+
+    /**
+     * This parse the .sdkmanrc file to determine the desired version of kotlin that is requested.
+     * @param {string} filename
+     * @returns
+     */
+    parseSdkmanrc(filename) {
+        let entries = this.parseSdkmanrcEntries(filename)
+        return entries ? entries["kotlin"] : null
+    }
+
+    /**
+     * versionParser specifically handles parsing of the possible version identifiers found when running
+     * "kotlin -version".
+     * is compared against the expected value given
+     * @param {string} text - Of the form "Kotlin version 1.7.21-release-272 (JRE 1.8.0_282-b08)"
+     * @returns {[]} - An array of the actual parsed version string that was found. e.g. ["1.7.21"].
+     */
+    versionParser(text) {
+        // Default case for standard semantic versioning (i.e. major.minor.patch) in kotlin reported versions
+        let versions = super.versionParser(text)
+        this.debug(`versionParser: ${versions}`)
+        if (versions) {
+            // The version[0] houses the actual version number we seek.
+            const versionSource = versions[0]
+            const dashIndex = versionSource.indexOf("-")
+            if (dashIndex > 0) {
+                return [versionSource.substring(0, dashIndex)]
+            }
+            return versions
+        }
+        return [""]
+    }
+}
+
+// Register the subclass in our tool list
+Kotlin.register()
 
 
 /***/ }),
@@ -21026,6 +21042,15 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         super(Node.tool)
     }
 
+    /**
+     * The entry point to request that Node be installed. The version of Node that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .node-version or .nvmrc file.
+     * Assumes nodenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Node as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "18".
+     * @returns {string} - The actual version of Node that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = await this.getNodeVersion(
             desiredVersion,
@@ -21083,6 +21108,7 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
         await this.installYarn()
 
         // If we got this far, we have successfully configured node.
+        this.outputInstalledToolVersion(Node.tool, checkVersion)
         this.info("node success!")
         return checkVersion
     }
@@ -21284,6 +21310,15 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         super(Python.tool)
     }
 
+    /**
+     * The entry point to request that Python be installed. The version of Python that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .python-version file.
+     * Assumes pyenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Python as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "3.7.6".
+     * @returns {string} - The actual version of Python that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -21327,7 +21362,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         await this.version("pip --version")
 
         // If we got this far, we have successfully configured python.
-        _actions_core__WEBPACK_IMPORTED_MODULE_3__.setOutput(Python.tool, checkVersion)
+        this.outputInstalledToolVersion(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
     }
@@ -21419,6 +21454,262 @@ Python.register()
 
 /***/ }),
 
+/***/ 6126:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "Z": () => (/* binding */ SdkmanTool)
+/* harmony export */ });
+/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(7147);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(1017);
+/* harmony import */ var assert__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(9491);
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(7282);
+/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(3292);
+/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(4067);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(2186);
+
+
+
+
+
+
+
+
+
+// abstract class
+class SdkmanTool extends _tool_js__WEBPACK_IMPORTED_MODULE_5__/* ["default"] */ .Z {
+    static tool = "sdkman"
+    static envVar = "SDKMAN_DIR"
+    static installer = "sdk"
+    static installerPath = ".sdkman"
+    static installerVersion = "sdk version"
+    static configFile = ".sdkmanrc"
+
+    constructor(extendingTool) {
+        super(extendingTool)
+    }
+
+    /**
+     * Return the path to the tool installation directory, if found, otherwise
+     * return the default path to the tool.
+     *
+     * @returns {String} - Path to the root folder of the tool.
+     */
+    async findRoot() {
+        ;(function () {
+            // Shortcut this
+            if (this.sdkShimChecked) return
+
+            // All of this is to check if we have a sdkman install that hasn't
+            // been shimmed which won't be found correctly
+            let check = this.defaultRoot
+            this.debug(`checking with defaultRoot: ${check}`)
+
+            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
+            this.debug("defaultRoot exists")
+
+            check = path__WEBPACK_IMPORTED_MODULE_1__.join(check, "bin", "sdkman-init.sh")
+            if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) return
+            this.debug("sdkman-init.sh exists")
+
+            check = path__WEBPACK_IMPORTED_MODULE_1__.join(this.defaultRoot, "bin", "sdk")
+            if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(check)) {
+                this.debug(`sdk shim found at: ${check}`)
+                this.sdkShimChecked = true
+                return
+            }
+            this.debug("sdk shim does not exist")
+
+            this.shimSdk(this.defaultRoot)
+        }.bind(this)())
+
+        return super.findRoot()
+    }
+
+    /**
+     * Download and configures sdkman.
+     *
+     * @param  {string} root - Directory to install sdkman into (SDKMAN_DIR).
+     * @param  {string} noShim - Don't install the `sdk` shim.
+     * @return {string} The value of SDKMAN_DIR.
+     */
+    async install(root, noShim = false) {
+        assert__WEBPACK_IMPORTED_MODULE_2__(root, "root is required")
+        const url = "https://get.sdkman.io?rcupdate=false"
+        const install = await this.downloadTool(url)
+
+        // Export the SDKMAN_DIR for installation location
+        await this.setEnv(root)
+
+        // Create an env copy so we don't call findRoot during the install
+        const env = { ...process__WEBPACK_IMPORTED_MODULE_3__.env, ...(await this.getEnv(root)) }
+
+        // Remove the root dir, because Sdkman will not install if it exists,
+        // which is dumb, but that's what we got
+        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(root)) await fs_promises__WEBPACK_IMPORTED_MODULE_4__.rmdir(root)
+
+        // Run the installer script
+        await this.subprocessShell(`bash ${install}`, { env: env })
+
+        // Shim the sdk cli function and add to the path
+        if (!noShim) this.shimSdk(root)
+
+        // Asynchronously clean up the downloaded installer script
+        fs_promises__WEBPACK_IMPORTED_MODULE_4__.rm(install, { recursive: true }).catch(() => {})
+
+        return root
+    }
+
+    /**
+     * Create a shim for the `sdk` CLI functions that otherwise would require an
+     * active shell.
+     *
+     * @param {string} root - The root directory of the sdkman installation.
+     */
+    shimSdk(root) {
+        const shim = path__WEBPACK_IMPORTED_MODULE_1__.join(root, "bin", "sdk")
+
+        // This is our actual sdk shim script
+        const shimTmpl = `\
+#!/bin/bash
+export SDKMAN_DIR="${root}"
+SDKMAN_INIT_FILE="$SDKMAN_DIR/bin/sdkman-init.sh"
+if [[ ! -s "$SDKMAN_INIT_FILE" ]]; then exit 13; fi
+if [[ -z "$SDKMAN_AVAILABLE" ]]; then source "$SDKMAN_INIT_FILE" >/dev/null; fi
+export -f
+sdk "$@"
+`
+        this.info(`Creating sdk shim at ${shim}`)
+
+        // Ensure we have a path to install the shim to, no matter what
+        fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync(path__WEBPACK_IMPORTED_MODULE_1__.dirname(shim), { recursive: true })
+        // Remove the shim if there's something there, it's probably bad
+        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(shim)) fs__WEBPACK_IMPORTED_MODULE_0__.rmSync(shim)
+        // Write our new shim
+        fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(shim, shimTmpl, { mode: 0o755 })
+    }
+
+    /**
+     * Ensure that the sdkman config file contains the settings necessary for
+     * executing in a non-interactive CI environment.
+     */
+    checkSdkmanSettings(configFile) {
+        // Easy case, no file, make sure the directory exists and write config
+        if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(configFile)) {
+            this.debug("writing sdkman config")
+            const configPath = path__WEBPACK_IMPORTED_MODULE_1__.dirname(configFile)
+            fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync(configPath, { recursive: true })
+            // This config is taken from the packer repo
+            fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(
+                configFile,
+                `\
+sdkman_auto_answer=true
+sdkman_auto_complete=true
+sdkman_auto_env=true
+sdkman_auto_update=false
+sdkman_beta_channel=false
+sdkman_colour_enable=true
+sdkman_curl_connect_timeout=7
+sdkman_curl_max_time=10
+sdkman_debug_mode=false
+sdkman_insecure_ssl=false
+sdkman_rosetta2_compatible=false
+sdkman_selfupdate_enable=false`,
+            )
+            return
+        }
+
+        this.debug("sdkman config already present")
+        // If we get here, the file exists, and we just hope it's configured right
+        let data = fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(configFile, "utf8")
+        if (/sdkman_auto_answer=true/.test(data)) {
+            // We're good
+            this.debug("sdkman config okay")
+            return
+        }
+
+        this.debug("sdkman config misconfigured, maybe")
+        this.debug(fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(configFile, "utf8"))
+
+        this.debug("overwriting it because otherwise this tool won't work")
+        // If it's set to false, override with true
+        if (/sdkman_auto_answer=false/.test(data)) {
+            data = data.replace(
+                /sdkman_auto_answer=false/,
+                "sdkman_auto_answer=true",
+            )
+        } else {
+            // Append it to the end of the file
+            data += "\nsdkman_auto_answer=true"
+        }
+        data = data.replace(
+            /sdkman_selfupdate_feature=true/,
+            "sdkman_selfupdate_feature=false",
+        )
+        // This is deprecated but we want to make sure it's not enabled since
+        // it's still supported
+        data = data.replace(
+            /sdkman_selfupdate_enable=true/,
+            "sdkman_selfupdate_enable=false",
+        )
+        data = data.replace(
+            /sdkman_auto_update=true/,
+            "sdkman_auto_update=false",
+        )
+        fs__WEBPACK_IMPORTED_MODULE_0__.writeFileSync(configFile, data)
+        this.debug(fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(configFile, "utf8"))
+    }
+
+    parseSdkmanrcEntries(filename) {
+        filename = filename || SdkmanTool.configFile
+        filename = path__WEBPACK_IMPORTED_MODULE_1__.resolve(path__WEBPACK_IMPORTED_MODULE_1__.join(process__WEBPACK_IMPORTED_MODULE_3__.cwd(), filename))
+        // No file? We're done
+        if (!fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(filename)) {
+            this.debug(`No ${SdkmanTool.configFile} file found: ${filename}`)
+            return null
+        }
+
+        // Read our file and split it linewise
+        let data = fs__WEBPACK_IMPORTED_MODULE_0__.readFileSync(filename, { encoding: "utf8", flag: "r" })
+        if (!data) return
+        data = data.split("\n")
+
+        // Iterate over each line and match against the regex
+        const find = new RegExp("^([^#=]+)=([^# ]+)$")
+        let found = {}
+        for (let line of data) {
+            const match = find.exec(line)
+            if (!match) continue
+            found[match[1]] = match[2]
+        }
+        this.debug(`Found .sdkmanrc entries ${JSON.stringify(found)}`)
+        return found
+    }
+
+    /**
+     * Determines the absolute local path to the tool that was installed by sdkman, within all of the sdkman tool
+     * installations.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     * @returns {string} - The absolute local path to the tool as maintained by sdkman.
+     */
+    getSdkmanToolPath(toolName) {
+        return `${process__WEBPACK_IMPORTED_MODULE_3__.env[this.envVar]}/candidates/${toolName}/current`
+    }
+
+    /**
+     * Prepends the absolute local path of the sdkman installed tool to the PATH so that the sdkman installed tool
+     * is located before any tool of the same name is installed by the Operating System or the like.
+     * @param {string} toolName - e.g. "java", "kotlin", any sdkman installed tool.
+     */
+    prependSdkmanToolToPath(toolName) {
+        const sdkmanToolPath = this.getSdkmanToolPath(toolName)
+        _actions_core__WEBPACK_IMPORTED_MODULE_6__.addPath(`${sdkmanToolPath}/bin`)
+    }
+}
+
+
+/***/ }),
+
 /***/ 5105:
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
@@ -21441,6 +21732,15 @@ class Terraform extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .
         super(Terraform.tool)
     }
 
+    /**
+     * The entry point to request that Terraform be installed. The version of Terraform that is desired to be installed
+     * can be specified directly as an input to the action, or can be housed in the .terraform-version file.
+     * Assumes tfenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Terraform as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "1.1.2".
+     * @returns {string} - The actual version of Terraform that has been installed, or did not need to be installed
+     * since it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -21469,7 +21769,7 @@ class Terraform extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured terraform.
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput(Terraform.tool, checkVersion)
+        this.outputInstalledToolVersion(Terraform.tool, checkVersion)
         this.info("terraform success!")
         return checkVersion
     }
@@ -21578,6 +21878,7 @@ class Tool {
      */
     constructor(name) {
         this.name = name
+        this.ignore_installed = Boolean(process__WEBPACK_IMPORTED_MODULE_4__.env.IGNORE_INSTALLED)
 
         const required = ["tool", "envVar", "installer"]
         for (const member of required) {
@@ -21610,12 +21911,17 @@ class Tool {
         _actions_core__WEBPACK_IMPORTED_MODULE_7__[method](msg)
     }
 
-    // determines the desired version of the tool (e.g. terraform) that is being requested.
-    // if the desired version presented to the action is present, that version is
-    // honored rather than the version presented in the version file (e.g. .terraform-version)
-    // that can be optionally present in the checked out repo itself.
-    // Second value returned indicates whether or not the version returned has overridden
-    // the version from the repositories tool version file.
+    /**
+     * Determines the desired version of the tool (e.g. terraform) that is being requested.
+     * if the desired version presented to the action is present (actionDesiredVersion),
+     * that version is honored rather than the version presented in the version file (e.g. .terraform-version)
+     * that can be optionally present in the checked out repo itself.
+     * @param {string} actionDesiredVersion - Desired version as presented to the action.
+     * @param {string} repoToolVersionFilename - The name of the tool config file in the checked out repo that can also
+     * house a desired version identifier.
+     * @returns {[string, boolean]} - First argument houses the desired version of the tool. Second value indicates
+     * whether or not the version returned has overridden the version from the repository's tool config file.
+     */
     getVersion(actionDesiredVersion, repoToolVersionFilename) {
         this.debug(`getVersion: ${repoToolVersionFilename}`)
         // Check if we have any version passed in to the action (can be null/empty string)
@@ -21674,10 +21980,12 @@ class Tool {
         let check = this.subprocessShell(cmd, { silent: true, env: env })
             .then((proc) => {
                 if (proc.stdout) {
+                    this.silly(`version stdout: '${proc.stdout}'`)
                     let stdoutVersions = this.versionParser(proc.stdout)
                     if (stdoutVersions) return stdoutVersions
                 }
                 if (proc.stderr) {
+                    this.silly(`version stderr: '${proc.stderr}'`)
                     return this.versionParser(proc.stderr)
                 }
                 this.debug("version: no output parsed")
@@ -21693,6 +22001,7 @@ class Tool {
 
         // This is a hard check and will fail the action
         if (!soft) {
+            this.silly(`version hard check`)
             return check.catch(this.logAndExit(`failed to get version: ${cmd}`))
         }
 
@@ -21707,14 +22016,20 @@ class Tool {
         })
     }
 
-    // validateVersion returns the found current version from a subprocess which
-    // is compared against the expected value given
-    async validateVersion(expected) {
+    /**
+     * validateVersion returns the found current version from a subprocess which
+     * is compared against the expected value given
+     * @param {string} expected - The expected version value.
+     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @returns {string} - The actual version string that was found.
+     */
+    async validateVersion(expected, soft) {
         const command = this.toolVersion
         this.debug(`validateVersion: ${expected}: ${command}`)
-        let actual = await this.version(command)
+        let actual = await this.version(command, soft)
         if (expected != actual) {
-            this.debug(`found command ${_actions_io__WEBPACK_IMPORTED_MODULE_6__.which(command.split(" ")[0])}`)
+            const pathToTool = await _actions_io__WEBPACK_IMPORTED_MODULE_6__.which(command.split(" ")[0])
+            this.debug(`found command ${pathToTool}`)
             // this.debug(process.env.PATH)
             this.logAndExit(`version mismatch ${expected} != ${actual}`)(
                 new Error("version mismatch"),
@@ -21729,7 +22044,8 @@ class Tool {
      * a matching SemVer compatible tool on the PATH.
      *
      * @param {string} version
-     * @returns
+     * @param {Object} opts
+     * @returns {boolean}
      */
     async haveVersion(version) {
         if (!version || version.length < 1) {
@@ -21737,7 +22053,8 @@ class Tool {
             return false
         }
         this.info(`Desired version: ${version}`)
-        if (process__WEBPACK_IMPORTED_MODULE_4__.env.IGNORE_INSTALLED) {
+
+        if (this.ignore_installed) {
             this.info("    not checking for installed tools")
             return true
         }
@@ -21777,7 +22094,7 @@ class Tool {
             throw err
         })
 
-        // this.debug(`found version: ${found}`)
+        this.debug(`found version: ${found}`)
         if (!found) return true
 
         // If the found version string satisifes semVer with our tool
@@ -21810,6 +22127,41 @@ class Tool {
     satifiesSemVer(expected, found) {
         const semantic = `^${expected.replace(/\.\d+$/, ".x")}`
         return semver__WEBPACK_IMPORTED_MODULE_10__.satisfies(found, semantic)
+    }
+
+    /**
+     * Return [haveVersion, checkVersion, isVersionOverridden] for a this Tool
+     * subclass.
+     *
+     * This requires the subclass to implement a .findCheckVersion(desiredVerison).
+     *
+     * @param {string} desiredVersion
+     * @returns {string, string, boolean} abc
+     */
+    async findVersion(desiredVersion) {
+        if (!desiredVersion) {
+            desiredVersion = _actions_core__WEBPACK_IMPORTED_MODULE_7__.getInput(this.name)
+            this.debug(
+                `${this.name} has no desiredVersion, using action input value ${desiredVersion}`,
+            )
+        }
+        const [checkVersion, isVersionOverridden] = await this.findCheckVersion(
+            desiredVersion,
+        )
+        const needVersion = await this.haveVersion(checkVersion)
+        return [needVersion, checkVersion, isVersionOverridden]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] from Tool subclass.
+     *
+     * This must be implemented for Tool().findVersion() to work.
+     *
+     * This will generally be a thin wrapper around getVersion() or the tool
+     * specific implementation.
+     */
+    async findCheckVersion() {
+        throw new Error("not implemented")
     }
 
     /**
@@ -22253,6 +22605,7 @@ class Tool {
         // it fails
         await fs_promises__WEBPACK_IMPORTED_MODULE_5__.rm(download, { recursive: true }).catch(() => {})
         // Return the extracted directory
+        this.debug(`downloadTool: extracted to ${dir}`)
         return dir
     }
 
@@ -22304,6 +22657,15 @@ class Tool {
         return path
     }
 
+    /**
+     * Assigns installed tool version to an output parameter for consumers to consult.
+     * @param {string} toolName - The name of the tool (e.g. "kotlin") that has been installed.
+     * @param {string} installedVersion - The version of the tool (e.g. "1.7.21") that has been installed.
+     */
+    outputInstalledToolVersion(toolName, installedVersion) {
+        _actions_core__WEBPACK_IMPORTED_MODULE_7__.setOutput(toolName, installedVersion)
+    }
+
     // register adds name : subclass to the tool registry
     static register() {
         this.registry[this.tool] = this
@@ -22314,7 +22676,10 @@ class Tool {
     static all() {
         return Object.keys(this.registry).map((k) => {
             let tool = new this.registry[k]()
-            return { name: k, setup: tool.setup.bind(tool) }
+            return {
+                name: k,
+                setup: tool.setup.bind(tool),
+            }
         })
     }
 }

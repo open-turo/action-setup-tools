@@ -16,15 +16,38 @@ export class TestTool extends Tool {
     static installer = "testenv"
 }
 
-// runAction returns a promise that wraps the subprocess action execution and
-// allows for capturing error output if DEBUG is enabled
+/**
+ * Return false if we want to allow subprocess action output, otherwise true to
+ * silence output from runAction.
+ *
+ * @param {Object} env
+ * @returns
+ */
+function silentSubprocessOutput(env) {
+    let result = env.DEBUG == "true" ? false : true
+    result = env.SILLY_LOGGING == "true" ? false : result
+    result = env.ACTIONS_STEP_DEBUG == "true" ? false : result
+    return result
+}
+
+/**
+ * Return a promise that wraps the subprocess action execution and allows for
+ * capturing error output if DEBUG is enabled
+ *
+ * @param {string} name
+ * @param {Object} env
+ * @returns
+ */
 export async function runAction(name, env) {
     // const index = path.join(__dirname, name + '.js')
     const index = `${name}.js`
     let tool = new TestTool()
     env = env ? { ...process.env, ...env } : env
     return tool
-        .subprocess(`node ${index}`, { env: env, silent: true })
+        .subprocess(`node ${index}`, {
+            env: env,
+            silent: silentSubprocessOutput(env),
+        })
         .catch((err) => {
             throw new Error(
                 `subprocess failed code ${err.exitCode}\n${err.stdout}\n${err.stderr}`,
@@ -56,7 +79,10 @@ export async function runActionExpectError(name, env) {
     const index = `${name}.js`
     let tool = new TestTool()
     env = env ? { ...process.env, ...env } : env
-    return tool.subprocess(`node ${index}`, { env: env, silent: true })
+    return tool.subprocess(`node ${index}`, {
+        env: env,
+        silent: silentSubprocessOutput(env),
+    })
 }
 
 /**
@@ -231,6 +257,7 @@ export class Mute {
     static all() {
         // Don't mute if debug is enabled
         if (process.env.RUNNER_DEBUG) return
+        if (!silentSubprocessOutput()) return
         global.beforeAll?.(Mute.std)
         global.afterAll?.(Mute.reset)
     }

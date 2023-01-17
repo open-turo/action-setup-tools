@@ -65,3 +65,8 @@ typings/
 
 # next.js build output
 .next
+
+# Ignore version dotfiles created by our test suite
+.*-version
+
+.sdkmanrc

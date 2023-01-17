@@ -1,6 +1,4 @@
-import fs from "fs"
 import path from "path"
-import process from "process"
 
 import core from "@actions/core"
 
@@ -14,16 +12,20 @@ export default class Java extends SdkmanTool {
         super(Java.tool)
     }
 
-    // desiredVersion : The identifier for the specific desired version of java as
-    // known to sdkman such as "11.0.2-open" for version 11.0.2 from java.net.
-    // assumes sdkman is already installed on the self-hosted runner, is a failure
-    // condition otherwise.
+    /**
+     * The entry point to request that Java be installed. The version of Java that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .sdkmanrc file.
+     * Assumes sdkman is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of java as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "11.0.2-open".
+     * @returns {string} - The actual version of Java that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] =
-            this.getJavaVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) {
-            return checkVersion
-        }
+        const [needInstall, checkVersion, isVersionOverridden] =
+            await this.findVersion(desiredVersion)
+        // If we don't desire this tool or it's already present with a matching version
+        if (!needInstall) return checkVersion
 
         // Make sure that sdkman is installed
         await this.findInstaller()
@@ -53,12 +55,10 @@ export default class Java extends SdkmanTool {
         )
 
         // export JAVA_HOME to force using the correct version of java
-        const javaHome = `${process.env[this.envVar]}/candidates/java/current`
-        core.exportVariable("JAVA_HOME", javaHome)
+        core.exportVariable("JAVA_HOME", this.getSdkmanToolPath(Java.tool))
 
-        // Augment path so that the current version of java according to sdkman will be
-        // the version found.
-        core.addPath(`${javaHome}/bin`)
+        // Augment path so that the current version of java according to sdkman will be the version found.
+        this.prependSdkmanToolToPath(Java.tool)
 
         // Remove the trailing -blah from the Java version string
         const expectedVersion = checkVersion.replace(/[-_][^-_]+$/, "")
@@ -68,53 +68,49 @@ export default class Java extends SdkmanTool {
         await this.validateVersion(expectedVersion)
 
         // If we got this far, we have successfully configured java.
-        core.setOutput(Java.tool, checkVersion)
+        this.outputInstalledToolVersion(Java.tool, checkVersion)
         this.info("java success!")
         return checkVersion
     }
 
-    // determines the desired version of java that is being requested. if the desired version
-    // presented to the action is present, that version is honored rather than the version
-    // presented in the .sdkmanrc file that can be optionally present in the checked out repo itself.
-    // Second value returned indicates whether or not the version returned has overridden
-    // the version from the .sdkmanrc file.
+    /**
+     * Determines the desired version of java that is being requested. if the desired version
+     * presented to the action is present, that version is honored rather than the version
+     * presented in the .sdkmanrc file that can be optionally present in the checked out repo itself.
+     * Second value returned indicates whether or not the version returned has overridden
+     * the version from the .sdkmanrc file.
+     * @param {string} actionDesiredVersion - This is the desired version of java as presented directly to the
+     * action.
+     * @returns {[string, boolean]} - The overall desired version of java that has been found, and the boolean
+     * indicates whether or not that version is overriding the value found in the .sdkmanrc file.
+     */
     getJavaVersion(actionDesiredVersion) {
         // Check if we have any version passed in to the action (can be null/empty string)
         if (actionDesiredVersion) return [actionDesiredVersion, true]
 
         const readJavaVersion = this.parseSdkmanrc()
         if (readJavaVersion) {
-            this.debug(`Found java version ${readJavaVersion} in .sdkmanrc`)
+            this.debug(
+                `Found java version ${readJavaVersion} in ${Java.configFile}`,
+            )
             return [readJavaVersion, false]
         }
         // No version has been specified
         return [null, null]
     }
 
+    /**
+     * Return [checkVersion, isVersionOverridden] specific to this Tool subclass.
+     *
+     * @param {string} desiredVersion
+     */
+    async findCheckVersion(desiredVersion) {
+        return this.getJavaVersion(desiredVersion)
+    }
+
     parseSdkmanrc(filename) {
-        filename = filename || ".sdkmanrc"
-        filename = path.resolve(path.join(process.cwd(), filename))
-        // No file? We're done
-        if (!fs.existsSync(filename)) {
-            this.debug(`No .sdkmanrc file found: ${filename}`)
-            return
-        }
-
-        // Read our file and split it linewise
-        let data = fs.readFileSync(filename, { encoding: "utf8", flag: "r" })
-        if (!data) return
-        data = data.split("\n")
-
-        // Iterate over each line and match against the regex
-        const find = new RegExp("^([^#=]+)=([^# ]+)$")
-        let found = {}
-        for (let line of data) {
-            const match = find.exec(line)
-            if (!match) continue
-            found[match[1]] = match[2]
-        }
-        this.debug(`Found .sdkmanrc entries ${JSON.stringify(found)}`)
-        return found["java"]
+        let entries = this.parseSdkmanrcEntries(filename)
+        return entries ? entries["java"] : null
     }
 
     // versionParser specially handles version string extraction

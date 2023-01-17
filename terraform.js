@@ -13,6 +13,15 @@ export default class Terraform extends Tool {
         super(Terraform.tool)
     }
 
+    /**
+     * The entry point to request that Terraform be installed. The version of Terraform that is desired to be installed
+     * can be specified directly as an input to the action, or can be housed in the .terraform-version file.
+     * Assumes tfenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Terraform as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "1.1.2".
+     * @returns {string} - The actual version of Terraform that has been installed, or did not need to be installed
+     * since it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -41,7 +50,7 @@ export default class Terraform extends Tool {
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured terraform.
-        core.setOutput(Terraform.tool, checkVersion)
+        this.outputInstalledToolVersion(Terraform.tool, checkVersion)
         this.info("terraform success!")
         return checkVersion
     }

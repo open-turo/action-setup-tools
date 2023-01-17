@@ -15,9 +15,15 @@ export default class Golang extends Tool {
         super(Golang.tool)
     }
 
-    // desiredVersion : The desired version of golang, e.g. "1.16.4"
-    // assumes goenv is already installed on the self-hosted runner, is a failure
-    // condition otherwise.
+    /**
+     * The entry point to request that Golang be installed. The version of Golang that is desired to be installed can
+     * be specified directly as an input to the action, or can be housed in the .go-version file.
+     * Assumes goenv is already installed on the self-hosted runner, is a failure condition otherwise.
+     * @param {string} desiredVersion - This is the identifier of the desired version of Golang as presented directly
+     * to the action, if a desired version has been presented directly to the action. e.g. "1.16.4".
+     * @returns {string} - The actual version of Golang that has been installed, or did not need to be installed since
+     * it is already installed.
+     */
     async setup(desiredVersion) {
         const [checkVersion, isVersionOverridden] = this.getVersion(
             desiredVersion,
@@ -59,7 +65,7 @@ export default class Golang extends Tool {
         await this.validateVersion(checkVersion)
 
         // If we got this far, we have successfully configured golang.
-        core.setOutput(Golang.tool, checkVersion)
+        this.outputInstalledToolVersion(Golang.tool, checkVersion)
         this.info("golang success!")
         return checkVersion
     }
