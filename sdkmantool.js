@@ -9,6 +9,7 @@ import Tool from "./tool.js"
 // abstract class
 export default class SdkmanTool extends Tool {
     static tool = "sdkman"
+    static envVar = "SDKMAN_DIR"
     static installer = "sdk"
     static installerPath = ".sdkman"
     static installerVersion = "sdk version"

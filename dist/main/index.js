@@ -20675,6 +20675,7 @@ var tool = __nccwpck_require__(4067);
 // abstract class
 class SdkmanTool extends tool/* default */.Z {
     static tool = "sdkman"
+    static envVar = "SDKMAN_DIR"
     static installer = "sdk"
     static installerPath = ".sdkman"
     static installerVersion = "sdk version"
@@ -20839,10 +20840,6 @@ sdkman_selfupdate_enable=false`,
 class Java extends SdkmanTool {
     static tool = "java"
     static toolVersion = "java -version"
-    static envVar = "SDKMAN_DIR"
-    static installer = "sdk"
-    static installerPath = ".sdkman"
-    static installerVersion = "sdk version"
 
     constructor() {
         super(Java.tool)
