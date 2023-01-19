@@ -41,7 +41,7 @@ describe("run", () => {
 
     it("works with all tools", async () => {
         const goVersion = "1.17.6"
-        const desiredJavaVersion = "17.0.2"
+        const desiredJavaVersion = "17.0.5"
         const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
         const tfVersion = "1.1.2"
         const nodeVersion = "16.13.2"

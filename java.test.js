@@ -15,7 +15,7 @@ Mute.all()
 const rcfile = ".sdkmanrc"
 
 describe("runAction java", () => {
-    const desiredVersion = "17.0.2"
+    const desiredVersion = "17.0.5"
     const sdkmanVersionIdentifier = `${desiredVersion}-tem`
     const cleaner = new Cleaner(Java, "sdkman", [rcfile])
 
@@ -64,7 +64,7 @@ describe("Java", () => {
 
     // This case is well covered by the parseSdkmanrc suite below
     it.skip("parses a simple .sdkmanrc", async () => {
-        fs.writeFileSync(rcfile, "java=17.0.2-tem\n")
+        fs.writeFileSync(rcfile, "java=17.0.5-tem\n")
         const tool = new Java()
         cleaner.root = await tool.findRoot()
         return tool.setup()
@@ -118,10 +118,10 @@ describe("parseSdkmanrc", () => {
     afterEach(cleaner.clean)
 
     it("parses a simple .sdkmanrc", () => {
-        fs.writeFileSync(rcfile, "java=17.0.2-tem\n")
+        fs.writeFileSync(rcfile, "java=17.0.5-tem\n")
         const tool = new Java()
         const found = tool.parseSdkmanrc()
-        expect(found).toBe("17.0.2-tem")
+        expect(found).toBe("17.0.5-tem")
     })
 
     it("returns nothing if there's no rc file", () => {
@@ -190,7 +190,7 @@ describe("getJavaVersion", () => {
     })
 
     it("works with .sdkmanrc", () => {
-        const desiredVersion = "17.0.2-tem"
+        const desiredVersion = "17.0.5-tem"
         const fileContents =
             "# Enable auto-env through the sdkman_auto_env config\n" +
             "# Add key=value pairs of SDKs to use below\n" +
@@ -201,7 +201,7 @@ describe("getJavaVersion", () => {
             null,
             rcfile,
         )
-        expect(checkVersion).toBe("17.0.2-tem")
+        expect(checkVersion).toBe("17.0.5-tem")
         expect(isVersionOverridden).toBe(false)
     })
 
@@ -257,7 +257,7 @@ describe("versionParser", () => {
 
     it("handles java 11+ versions", () => {
         const tool = new Java()
-        const version = tool.versionParser(`openjdk version "17.0.2_temurin"`)
-        expect(version[0]).toBe("17.0.2")
+        const version = tool.versionParser(`openjdk version "17.0.5_temurin"`)
+        expect(version[0]).toBe("17.0.5")
     })
 })
