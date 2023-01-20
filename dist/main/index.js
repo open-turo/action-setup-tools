@@ -20614,6 +20614,8 @@ async function run() {
 
 function setupToolsInParallel() {
     const setups = _tool_js__WEBPACK_IMPORTED_MODULE_7__/* ["default"].all */ .Z.all().map((tool) =>
+        // TODO: Once all tools implement findVersion/findCheckVersion calls we
+        // can remove core.getInput from here
         tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)),
     )
     return Promise.all(setups)
@@ -20785,11 +20787,10 @@ class Java extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ 
      * it is already installed.
      */
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] =
-            this.getJavaVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) {
-            return checkVersion
-        }
+        const [needInstall, checkVersion, isVersionOverridden] =
+            await this.findVersion(desiredVersion)
+        // If we don't desire this tool or it's already present with a matching version
+        if (!needInstall) return checkVersion
 
         // Make sure that sdkman is installed
         await this.findInstaller()
@@ -20861,6 +20862,15 @@ class Java extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ 
         }
         // No version has been specified
         return [null, null]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] specific to this Tool subclass.
+     *
+     * @param {string} desiredVersion
+     */
+    async findCheckVersion(desiredVersion) {
+        return this.getJavaVersion(desiredVersion)
     }
 
     parseSdkmanrc(filename) {
@@ -20944,6 +20954,9 @@ class Kotlin extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] *
             path__WEBPACK_IMPORTED_MODULE_0__.join(`${await this.findRoot()}`, "etc/config"),
         )
 
+        // Make sure we have Java requested, and by the time this succeeds we are guaranteed to have Java installed
+        await this.checkForJava()
+
         // If sdkman is requested to install the same version of kotlin more than once,
         // all subsequent attempts will be a no-op and sdkman will report a message of the
         // form "kotlin 1.6.21 is already installed".
@@ -20995,6 +21008,45 @@ class Kotlin extends _sdkmantool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] *
         return [null, null]
     }
 
+    /**
+     * Checks if we have Java or we're trying to install it.
+     * @returns {string} - The installed Java version
+     */
+    async checkForJava() {
+        const waitTime = 300 // 5 minutes or so
+
+        const findJavaVersion = async () => {
+            // Find if we have Java installed or we've specified a version to install
+            const [needJava, javaVersion] = await new _java_js__WEBPACK_IMPORTED_MODULE_1__/* ["default"] */ .Z().findVersion()
+            // If we don't have a version we've found or are installing, that's an error
+            if (!javaVersion) {
+                this.logAndExit("Java is required for Kotlin")
+            }
+            // If don't need to install Java because it's already installed, we're done
+            if (!needJava) {
+                return javaVersion
+            }
+        }
+
+        for (let attempts = 0; attempts < waitTime; attempts++) {
+            // If we have Java, break the loop return success
+            let javaVersion = await findJavaVersion()
+            if (javaVersion) {
+                this.info(`Found Java '${javaVersion}', continuing with Kotlin`)
+                return
+            }
+
+            // If we desired Java, and we don't have a version found yet, sleep
+            //   one second and retry
+            // TODO: Remember how to async sleep in Node
+        }
+    }
+
+    /**
+     * This parse the .sdkmanrc file to determine the desired version of kotlin that is requested.
+     * @param {string} filename
+     * @returns
+     */
     parseSdkmanrc(filename) {
         let entries = this.parseSdkmanrcEntries(filename)
         return entries ? entries["kotlin"] : null
@@ -21920,7 +21972,8 @@ class Tool {
     }
 
     /**
-     * Return true if `version` is not empty.
+     * Return true if we need to install the tool, otherwise falsey if it can be
+     * skipped.
      *
      * @param {string} version
      * @returns {boolean}
@@ -21970,6 +22023,37 @@ class Tool {
                 ` skipping setup...`,
         )
         return false
+    }
+
+    /**
+     * Return [haveVersion, checkVersion, isVersionOverridden] for a this Tool
+     * subclass.
+     *
+     * This requires the subclass to implement a .findCheckVersion(desiredVerison).
+     *
+     * @param {string} desiredVersion
+     */
+    async findVersion(desiredVersion) {
+        if (!desiredVersion) {
+            desiredVersion = _actions_core__WEBPACK_IMPORTED_MODULE_7__.getInput(this.name)
+        }
+        const [checkVersion, isVersionOverridden] = await this.findCheckVersion(
+            desiredVersion,
+        )
+        const needVersion = await this.haveVersion(checkVersion)
+        return [needVersion, checkVersion, isVersionOverridden]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] from Tool subclass.
+     *
+     * This must be implemented for Tool().findVersion() to work.
+     *
+     * This will generally be a thin wrapper around getVersion() or the tool
+     * specific implementation.
+     */
+    async findCheckVersion() {
+        throw new Error("not implemented")
     }
 
     /**

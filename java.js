@@ -22,11 +22,10 @@ export default class Java extends SdkmanTool {
      * it is already installed.
      */
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] =
-            this.getJavaVersion(desiredVersion)
-        if (!(await this.haveVersion(checkVersion))) {
-            return checkVersion
-        }
+        const [needInstall, checkVersion, isVersionOverridden] =
+            await this.findVersion(desiredVersion)
+        // If we don't desire this tool or it's already present with a matching version
+        if (!needInstall) return checkVersion
 
         // Make sure that sdkman is installed
         await this.findInstaller()
@@ -98,6 +97,15 @@ export default class Java extends SdkmanTool {
         }
         // No version has been specified
         return [null, null]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] specific to this Tool subclass.
+     *
+     * @param {string} desiredVersion
+     */
+    async findCheckVersion(desiredVersion) {
+        return this.getJavaVersion(desiredVersion)
     }
 
     parseSdkmanrc(filename) {

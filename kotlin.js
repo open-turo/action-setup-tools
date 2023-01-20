@@ -34,6 +34,9 @@ export default class Kotlin extends SdkmanTool {
             path.join(`${await this.findRoot()}`, "etc/config"),
         )
 
+        // Make sure we have Java requested, and by the time this succeeds we are guaranteed to have Java installed
+        await this.checkForJava()
+
         // If sdkman is requested to install the same version of kotlin more than once,
         // all subsequent attempts will be a no-op and sdkman will report a message of the
         // form "kotlin 1.6.21 is already installed".
@@ -85,6 +88,45 @@ export default class Kotlin extends SdkmanTool {
         return [null, null]
     }
 
+    /**
+     * Checks if we have Java or we're trying to install it.
+     * @returns {string} - The installed Java version
+     */
+    async checkForJava() {
+        const waitTime = 300 // 5 minutes or so
+
+        const findJavaVersion = async () => {
+            // Find if we have Java installed or we've specified a version to install
+            const [needJava, javaVersion] = await new Java().findVersion()
+            // If we don't have a version we've found or are installing, that's an error
+            if (!javaVersion) {
+                this.logAndExit("Java is required for Kotlin")
+            }
+            // If don't need to install Java because it's already installed, we're done
+            if (!needJava) {
+                return javaVersion
+            }
+        }
+
+        for (let attempts = 0; attempts < waitTime; attempts++) {
+            // If we have Java, break the loop return success
+            let javaVersion = await findJavaVersion()
+            if (javaVersion) {
+                this.info(`Found Java '${javaVersion}', continuing with Kotlin`)
+                return
+            }
+
+            // If we desired Java, and we don't have a version found yet, sleep
+            //   one second and retry
+            // TODO: Remember how to async sleep in Node
+        }
+    }
+
+    /**
+     * This parse the .sdkmanrc file to determine the desired version of kotlin that is requested.
+     * @param {string} filename
+     * @returns
+     */
     parseSdkmanrc(filename) {
         let entries = this.parseSdkmanrcEntries(filename)
         return entries ? entries["kotlin"] : null

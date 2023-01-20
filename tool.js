@@ -203,7 +203,8 @@ export default class Tool {
     }
 
     /**
-     * Return true if `version` is not empty.
+     * Return true if we need to install the tool, otherwise falsey if it can be
+     * skipped.
      *
      * @param {string} version
      * @returns {boolean}
@@ -253,6 +254,37 @@ export default class Tool {
                 ` skipping setup...`,
         )
         return false
+    }
+
+    /**
+     * Return [haveVersion, checkVersion, isVersionOverridden] for a this Tool
+     * subclass.
+     *
+     * This requires the subclass to implement a .findCheckVersion(desiredVerison).
+     *
+     * @param {string} desiredVersion
+     */
+    async findVersion(desiredVersion) {
+        if (!desiredVersion) {
+            desiredVersion = core.getInput(this.name)
+        }
+        const [checkVersion, isVersionOverridden] = await this.findCheckVersion(
+            desiredVersion,
+        )
+        const needVersion = await this.haveVersion(checkVersion)
+        return [needVersion, checkVersion, isVersionOverridden]
+    }
+
+    /**
+     * Return [checkVersion, isVersionOverridden] from Tool subclass.
+     *
+     * This must be implemented for Tool().findVersion() to work.
+     *
+     * This will generally be a thin wrapper around getVersion() or the tool
+     * specific implementation.
+     */
+    async findCheckVersion() {
+        throw new Error("not implemented")
     }
 
     /**

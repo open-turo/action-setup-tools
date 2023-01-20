@@ -42,6 +42,8 @@ export default async function run() {
 
 function setupToolsInParallel() {
     const setups = Tool.all().map((tool) =>
+        // TODO: Once all tools implement findVersion/findCheckVersion calls we
+        // can remove core.getInput from here
         tool.setup(core.getInput(tool.name)),
     )
     return Promise.all(setups)
