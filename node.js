@@ -38,7 +38,17 @@ export default class Node extends Tool {
         // Update nodeenv versions in case the user is requesting a node version
         // that did not exist when nodenenv was installed
         const updateVersionsCommand = `${this.installer} update-version-defs`
-        await this.subprocessShell(updateVersionsCommand).catch((error) => {
+        // Remove NODENV related vars from the environment, as when running
+        // nodenv it will pick them and try to use the specified node version
+        // which can lead into issues if that node version does not exist
+        // eslint-disable-next-line no-unused-vars
+        const { NODENV_VERSION, ...envWithoutNodenv } = process.env
+        await this.subprocessShell(updateVersionsCommand, {
+            // Run the cmd in a tmp file so that nodenv doesn't pick any .node-version file in the repo with an unknown
+            // node version
+            cwd: process.env.RUNNER_TEMP,
+            env: { ...envWithoutNodenv, ...this.getEnv() },
+        }).catch((error) => {
             this.warning(
                 `Failed to update nodenv version refs, install may fail`,
             )
