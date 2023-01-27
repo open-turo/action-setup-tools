@@ -27,6 +27,9 @@ export default class Python extends Tool {
         // we're at it
         await this.findInstaller()
 
+        // Ensure we have the latest pyenv and python versions available
+        await this.updatePyenv()
+
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
             core.exportVariable("PYENV_VERSION", checkVersion)
@@ -53,6 +56,28 @@ export default class Python extends Tool {
         core.setOutput(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
+    }
+
+    /**
+     * Update pyenv via the 'pyenv update' plugin command, if it's available.
+     */
+    async updatePyenv() {
+        // Extract PYENV_VERSION to stop it complaining
+        // eslint-disable-next-line no-unused-vars
+        const { PYENV_VERSION, ...env } = process.env
+        const cmd = `${this.installer} update`
+        await this.subprocessShell(cmd, {
+            // Run outside the repo root so we don't pick up defined version files
+            cwd: process.env.RUNNER_TEMP,
+            env: { ...env, ...this.getEnv() },
+        }).catch((err) => {
+            this.warning(
+                `Failed to update pyenv, latest versions may not be supported`,
+            )
+            if (err.stderr) {
+                this.debug(err.stderr)
+            }
+        })
     }
 
     async setEnv() {
