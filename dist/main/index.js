@@ -21281,6 +21281,9 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         // we're at it
         await this.findInstaller()
 
+        // Ensure we have the latest pyenv and python versions available
+        await this.updatePyenv()
+
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
             _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("PYENV_VERSION", checkVersion)
@@ -21307,6 +21310,28 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
+    }
+
+    /**
+     * Update pyenv via the 'pyenv update' plugin command, if it's available.
+     */
+    async updatePyenv() {
+        // Extract PYENV_VERSION to stop it complaining
+        // eslint-disable-next-line no-unused-vars
+        const { PYENV_VERSION, ...env } = process.env
+        const cmd = `${this.installer} update`
+        await this.subprocessShell(cmd, {
+            // Run outside the repo root so we don't pick up defined version files
+            cwd: process.env.RUNNER_TEMP,
+            env: { ...env, ...this.getEnv() },
+        }).catch((err) => {
+            this.warning(
+                `Failed to update pyenv, latest versions may not be supported`,
+            )
+            if (err.stderr) {
+                this.debug(err.stderr)
+            }
+        })
     }
 
     async setEnv() {
