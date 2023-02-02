@@ -21654,7 +21654,9 @@ class Tool {
     }
 
     /**
-     * Return true if `version` is not empty.
+     * Return true if `version` is not satisfied by existing tooling, is an
+     * empty string, or IGNORE_INSTALLED is set. Return `false` if we have found
+     * a matching SemVer compatible tool on the PATH.
      *
      * @param {string} version
      * @returns
@@ -21686,12 +21688,12 @@ class Tool {
         // this.debug(`found version: ${found}`)
         if (!found) return true
 
-        // Just export the environment blindly if we have a version
-        this.setEnv()
-
         const semantic = `^${version.replace(/\.\d+$/, ".x")}`
         const ok = semver__WEBPACK_IMPORTED_MODULE_10__.satisfies(found, semantic)
         if (!ok) {
+            // If we haven't found an existing, matching version on the PATH, we
+            // set our environment so we can actually install the one we want
+            this.setEnv()
             this.info(
                 `Installed tool version ${found} does not satisfy ` +
                     `${semantic}...`,
