@@ -94,32 +94,44 @@ jobs:
           terraform --version | grep "1.1.5"
   # Build and run the action from this repo to test full functionality
   action-regression:
-    name: Test / Regression / setEnv
-    needs: [lint]
+    name: Test / Regression / pyenv
+    # needs: [lint]  # TODO: Reinstate this after done with fast testing
     runs-on: ubuntu-latest
     env:
       PYTHON_VERSION: 3.9.13
     steps:
       - uses: actions/checkout@v3
-      - name: Install pyenv on hosted runner, unconfigured
-        run: curl https://pyenv.run | bash
+      - name: Install pyenv on hosted runner
+        run: |
+          # Installing pyenv
+          curl https://pyenv.run | bash
+          # Install a Python version so we have shims, this is slow but necessary
+          PATH="$HOME/.pyenv/bin:$PATH" pyenv install 3.10.4
+          # Generate shims
+          PATH="$HOME/.pyenv/bin:$PATH" pyenv rehash
       - name: Create version files
         run: echo "${PYTHON_VERSION}" > .python-version
       - name: Setup python
         uses: actions/setup-python@v4
       - name: Run action using version files
         uses: ./
-      - name: Expect a Python failure from pyenv
+      - name: Pyenv should not preempt actions/setup-python versions
         shell: bash
         run: |
           # Check versions
-          output="$(python --version)"
+          output="$(python --version 2>&1 || true)"
           echo "::debug::python --version: $output"
+          # This is overly noisy, uncomment for debugging
+          # output3="$(python3 --version 2>&1 || true)"
+          # echo "::debug::python3 --version: $output3"
+          # echo "::debug::pyenv versions: $(pyenv versions 2>&1 || true)"
+          # echo "::debug::./pyenv/shims: $(ls -1 "$(pyenv root)/shims" 2>&1 || true)"
+          echo -e "::debug::PATH:\n$(echo "$PATH" | tr ":" "\n")"
           echo "$output" | grep -i "pyenv: version .* not installed" && \
             {
               echo "::error:: Expected python --version to work, hit pyenv instead."
-              echo "::debug::$(pyenv versions)"
-              echo "::debug::$(echo "$PATH" | tr ":" "\n")"
+              # echo "::debug::$(pyenv versions)"
+              # echo "::debug::$(echo "$PATH" | tr ":" "\n")"
               exit 1
             }
           echo "Success!"
