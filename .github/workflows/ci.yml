@@ -95,7 +95,7 @@ jobs:
   # Build and run the action from this repo to test full functionality
   action-regression:
     name: Test / Regression / setEnv
-    needs: [lint, fast]
+    needs: [lint]
     runs-on: ubuntu-latest
     env:
       PYTHON_VERSION: 3.9.13
