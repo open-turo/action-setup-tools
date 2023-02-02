@@ -98,40 +98,100 @@ jobs:
     # needs: [lint]  # TODO: Reinstate this after done with fast testing
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: 3.9.13
+      DESIRED_PYTHON_VERSION: 3.9.13
+      UPGRADE_PYTHON_VERSION: 3.10.6
     steps:
       - uses: actions/checkout@v3
       - name: Install pyenv on hosted runner
         run: |
           # Installing pyenv
+          echo "::debug::Installing pyenv"
           curl https://pyenv.run | bash
-          # Install a Python version so we have shims, this is slow but necessary
-          PATH="$HOME/.pyenv/bin:$PATH" pyenv install 3.10.4
-          # Generate shims
-          PATH="$HOME/.pyenv/bin:$PATH" pyenv rehash
+
+          echo "::debug::Exporting environment"
+          export PYENV_ROOT="$HOME/.pyenv"
+          export PATH="$PYENV_ROOT/bin:$PATH"
+
+          echo "::debug::Intializing pyenv"
+          eval "$(pyenv init -)"
+
+          echo "::debug::Installing python $UPGRADE_PYTHON_VERSION"
+          pyenv install "$UPGRADE_PYTHON_VERSION"
+
+          echo "::debug::Rehashing shims"
+          pyenv rehash
+      - name: Debug env
+        if: "false" # Comment this out for add'l debug
+        run: env | sort
       - name: Create version files
-        run: echo "${PYTHON_VERSION}" > .python-version
+        run: echo "${DESIRED_PYTHON_VERSION}" > .python-version
       - name: Setup python
         uses: actions/setup-python@v4
-      - name: Run action using version files
+      - name: Debug environment
+        if: "false" # Comment this out for add'l debug
+        run: |
+          export PYENV_ROOT="$HOME/.pyenv"
+          echo "::debug::python --version: $(python --version 2>&1 || true)"
+          echo "::debug::python3 --version: $(python3 --version 2>&1 || true)"
+          echo "::debug::pyenv should not be on the path:"
+          echo "::debug::which pyenv:$(which pyenv 2>&1 || true)"
+          echo "::debug::We manually supply the path:"
+          echo "::debug::pyenv versions: $("$PYENV_ROOT/bin/pyenv" versions 2>&1 || true)"
+          echo "::debug::~/.pyenv/shims: $(ls -1 "$("$PYENV_ROOT/bin/pyenv" root)/shims" 2>&1 || true)"
+          echo -e "::debug::PATH:\n$(echo "$PATH" | tr ":" "\n")"
+      - name: Run action-setup-tools
         uses: ./
-      - name: Pyenv should not preempt actions/setup-python versions
+      - name: Pyenv should not preempt actions/setup-python if SemVer is ok
         shell: bash
         run: |
           # Check versions
           output="$(python --version 2>&1 || true)"
           echo "::debug::python --version: $output"
-          # This is overly noisy, uncomment for debugging
-          # output3="$(python3 --version 2>&1 || true)"
-          # echo "::debug::python3 --version: $output3"
-          # echo "::debug::pyenv versions: $(pyenv versions 2>&1 || true)"
-          # echo "::debug::./pyenv/shims: $(ls -1 "$(pyenv root)/shims" 2>&1 || true)"
+          echo "::debug::python3 --version: $(python3 --version 2>&1 || true)"
+          echo "::debug::pyenv versions: $(pyenv versions 2>&1 || true)"
+          echo "::debug::.pyenv/shims: $(ls -1 "$HOME/.pyenv/shims" 2>&1 || true)"
           echo -e "::debug::PATH:\n$(echo "$PATH" | tr ":" "\n")"
           echo "$output" | grep -i "pyenv: version .* not installed" && \
             {
               echo "::error:: Expected python --version to work, hit pyenv instead."
-              # echo "::debug::$(pyenv versions)"
-              # echo "::debug::$(echo "$PATH" | tr ":" "\n")"
+              echo "::debug::$(pyenv versions)"
+              echo "::debug::$(echo "$PATH" | tr ":" "\n")"
               exit 1
             }
+          version=$(echo "$output" | awk '{print $2}')
+          echo "::debug::Found version: $version"
+          echo "::debug::Desired version: $DESIRED_PYTHON_VERSION"
+          if [[ "$version" != "$DESIRED_PYTHON_VERSION" ]]; then
+            echo "::error::Expected python --version to return '$DESIRED_PYTHON_VERSION', got '$version'"
+            exit 1
+          fi
+          echo "Success!"
+      - name: Create upgraded version files
+        run: echo "$UPGRADE_PYTHON_VERSION" > .python-version
+      - name: Run action-setup-tools
+        uses: ./
+      - name: Pyenv upgrades if SemVer is NOT satisfied
+        shell: bash
+        run: |
+          # Check versions
+          output="$(python --version 2>&1 || true)"
+          echo "::debug::python --version: $output"
+          echo "::debug::python3 --version: $(python3 --version 2>&1 || true)"
+          echo "::debug::pyenv versions: $(pyenv versions 2>&1 || true)"
+          echo "::debug::.pyenv/shims: $(ls -1 "$HOME/.pyenv/shims" 2>&1 || true)"
+          echo -e "::debug::PATH:\n$(echo "$PATH" | tr ":" "\n")"
+          echo "$output" | grep -i "pyenv: version .* not installed" && \
+            {
+              echo "::error:: Expected python --version to work, hit pyenv instead."
+              echo "::debug::$(pyenv versions)"
+              echo "::debug::$(echo "$PATH" | tr ":" "\n")"
+              exit 1
+            }
+          version=$(echo "$output" | awk '{print $2}')
+          echo "::debug::Found version: $version"
+          echo "::debug::Desired version: $UPGRADE_PYTHON_VERSION"
+          if [[ "$version" != "$UPGRADE_PYTHON_VERSION" ]]; then
+            echo "::error::Expected python --version to return '$UPGRADE_PYTHON_VERSION', got '$version'"
+            exit 1
+          fi
           echo "Success!"
