@@ -21369,12 +21369,13 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
     }
 
     /**
-     * Run `npm install -g yarn` and `nodenv rehash` to ensure `yarn` is on the CLI.
+     * Ensures pip is installed.
      */
     async installPip() {
-        // Check for an existing version
+        // Check for an existing version using whatever environment has been set
         const pipVersion = await this.version("pip --version", {
             soft: true,
+            env: { ...process.env },
         }).catch(() => {})
         if (pipVersion) {
             this.debug(`pip is already installed (${pipVersion})`)
@@ -21392,7 +21393,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         await this.subprocessShell("pyenv rehash").catch(() => {})
 
         // Sanity check the pip command works, and output its version
-        await this.version("pip --version")
+        await this.version("pip --version", { env: { ...process.env } })
     }
 }
 
@@ -22222,17 +22223,14 @@ class Tool {
         if (tar.strip) tar.args.push(`--strip-components=${tar.strip}`)
 
         // Toggle debug output 'cause it's super noisy during tar extraction
-        const runner_debug = process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG
-        const step_debug = process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG
-        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG = undefined
-        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG = undefined
+        const runner_debug = process__WEBPACK_IMPORTED_MODULE_4__.env.RUNNER_DEBUG
+        process__WEBPACK_IMPORTED_MODULE_4__.env.RUNNER_DEBUG = undefined
 
         // Extract the tarball
         const dir = await _actions_tool_cache__WEBPACK_IMPORTED_MODULE_8__.extractTar(download, tar.dest, tar.args)
 
         // Restore the originals
-        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG = runner_debug
-        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG = step_debug
+        process__WEBPACK_IMPORTED_MODULE_4__.env.RUNNER_DEBUG = runner_debug
 
         // Try to remove the downloaded file now that we have extracted it, but
         // allow it to happen async and in the background, and we don't care if

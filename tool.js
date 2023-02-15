@@ -719,17 +719,14 @@ export default class Tool {
         if (tar.strip) tar.args.push(`--strip-components=${tar.strip}`)
 
         // Toggle debug output 'cause it's super noisy during tar extraction
-        const runner_debug = process.env.ACTIONS_RUNNER_DEBUG
-        const step_debug = process.env.ACTIONS_STEP_DEBUG
-        process.env.ACTIONS_RUNNER_DEBUG = undefined
-        process.env.ACTIONS_STEP_DEBUG = undefined
+        const runner_debug = process.env.RUNNER_DEBUG
+        process.env.RUNNER_DEBUG = undefined
 
         // Extract the tarball
         const dir = await toolCache.extractTar(download, tar.dest, tar.args)
 
         // Restore the originals
-        process.env.ACTIONS_RUNNER_DEBUG = runner_debug
-        process.env.ACTIONS_STEP_DEBUG = step_debug
+        process.env.RUNNER_DEBUG = runner_debug
 
         // Try to remove the downloaded file now that we have extracted it, but
         // allow it to happen async and in the background, and we don't care if
