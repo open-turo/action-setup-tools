@@ -21189,9 +21189,9 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
      */
     async installYarn() {
         // Check for an existing version
-        let yarnVersion = await this.version("yarn --version", true).catch(
-            () => {},
-        )
+        let yarnVersion = await this.version("yarn --version", {
+            soft: true,
+        }).catch(() => {})
         if (yarnVersion) {
             this.debug(`yarn is already installed (${yarnVersion})`)
             return
@@ -21476,11 +21476,7 @@ Terraform.register()
 
 
 
-// Only create the silly logger once so it's a fast passthrough that the
-// runtime can optimize away
-const silly = process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING
-    ? (...msg) => _actions_core__WEBPACK_IMPORTED_MODULE_7__.debug(`SILLY ${msg.join(" ")}`)
-    : () => {}
+/** TODO: Remove me */
 
 // Superclass for all supported tools
 class Tool {
@@ -21543,6 +21539,12 @@ class Tool {
         loggers.forEach((logger) => {
             this[logger] = (...msg) => this.log(logger, msg)
         })
+
+        // Only create the this.silly logger once so it's a fast passthrough that the
+        // runtime can optimize away
+        this.silly = process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING
+            ? (...msg) => this.debug(`SILLY ${msg.join(" ")}`)
+            : () => {}
     }
 
     // Log a message using method from core and msg prepended with the name
@@ -21595,13 +21597,27 @@ class Tool {
      * parsable version strings in an array. provide true for
      * useLooseVersionFinding when the expected version string contains
      * non-version appearing values such as go1.16.8.
+     *
+     * ```
+     * opts = {
+     *   soft: false, // If true, don't exit the action if no version is found.
+     *   env: {}, // Environment variables to set for the subprocess.
+     * }
+     * ```
+     *
+     * If `opts.env` is NOT set, then `this.getEnv()` will be invoked by
+     * `this.subprocessShell(...)` to set PATH and tool root variables as
+     * appropriate.
+     *
      * @param {string} cmd - Command to run to find version output.
-     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @param {Object} opts  - Options for handling different behaviors
      * @returns {string} - The version string that was found.
      */
-    async version(cmd, soft) {
-        silly(`version cmd: ${cmd}`)
-        let check = this.subprocessShell(cmd, { silent: true })
+    async version(cmd, opts) {
+        opts = opts ?? { soft: false, env: undefined }
+        const { soft, env } = opts
+        this.silly(`version cmd: ${cmd}`)
+        let check = this.subprocessShell(cmd, { silent: true, env: env })
             .then((proc) => {
                 if (proc.stdout) {
                     let stdoutVersions = this.versionParser(proc.stdout)
@@ -21627,7 +21643,7 @@ class Tool {
         }
 
         return check.catch((err) => {
-            silly(`version error: ${err}`)
+            this.silly(`version error: ${err}`)
             // Return a soft/empty version here
             if (/Unable to locate executable file:/.test(err.message)) {
                 return null
@@ -21671,41 +21687,73 @@ class Tool {
             this.info("    not checking for installed tools")
             return true
         }
-        this.debug("checking for installed version")
-        const found = await this.version(this.toolVersion, true).catch(
-            (err) => {
-                if (
-                    /^subprocess exited with non-zero code:/.test(err.message)
-                ) {
-                    // This can happen if there's no default version, so we
-                    // don't want to hard error here
-                    return null
-                }
-                throw err
-            },
-        )
+
+        this.debug("checking for installed version on system without getEnv")
+        const system = await this.version(this.toolVersion, {
+            soft: true,
+            env: { ...process__WEBPACK_IMPORTED_MODULE_4__.env },
+        }).catch((err) => {
+            if (/^subprocess exited with non-zero code:/.test(err.message)) {
+                // This can happen if there's no default version, so we
+                // don't want to hard error here
+                return null
+            }
+            throw err
+        })
+
+        // We found a system version on the unmodified parent process PATH
+        if (system) {
+            if (this.satifiesSemVer(version, system)) {
+                // Exit indicating we do not need to install anything
+                return false
+            }
+        }
+
+        this.debug("checking for installed version, with getEnv")
+        const found = await this.version(this.toolVersion, {
+            soft: true,
+        }).catch((err) => {
+            if (/^subprocess exited with non-zero code:/.test(err.message)) {
+                // This can happen if there's no default version, so we
+                // don't want to hard error here
+                return null
+            }
+            throw err
+        })
 
         // this.debug(`found version: ${found}`)
         if (!found) return true
 
-        const semantic = `^${version.replace(/\.\d+$/, ".x")}`
-        const ok = semver__WEBPACK_IMPORTED_MODULE_10__.satisfies(found, semantic)
-        if (!ok) {
-            // If we haven't found an existing, matching version on the PATH, we
-            // set our environment so we can actually install the one we want
+        // If the found version string satisifes semVer with our tool
+        // environment, we want to set the environment, and return indicating we
+        // don't need to install anything further
+        if (this.satifiesSemVer(version, found)) {
             this.setEnv()
             this.info(
-                `Installed tool version ${found} does not satisfy ` +
-                    `${semantic}...`,
+                `Found version ${found} that satisfies SemVer, skipping...`,
             )
-            return true
+            return false
         }
 
         this.info(
-            `Found installed tool version ${found} that satisfies ${semantic},` +
-                ` skipping setup...`,
+            `Found version ${found} does not satisfy SemVer, installing...`,
         )
-        return false
+        return true
+    }
+
+    /**
+     * Return true if `found` version string satisifies `expected` according to
+     * the SemVer constraints for this tool.
+     *
+     * TODO: Allow Tool subclasses to configure SemVer constraints.
+     *
+     * @param {string} expected
+     * @param {string} found
+     * @returns
+     */
+    satifiesSemVer(expected, found) {
+        const semantic = `^${expected.replace(/\.\d+$/, ".x")}`
+        return semver__WEBPACK_IMPORTED_MODULE_10__.satisfies(found, semantic)
     }
 
     /**
@@ -21722,7 +21770,7 @@ class Tool {
             exitCode: 0,
         }
 
-        silly(`subprocess env exists?: ${!!opts.env}`)
+        this.silly(`subprocess env exists?: ${!!opts.env}`)
         // Always merge the passed environment on top of the process environment so
         // we don't lose execution context
         // opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
@@ -21764,7 +21812,7 @@ class Tool {
                 .catch((err) => {
                     if (/^Unable to locate executable file/.test(err.message)) {
                         this.debug(`'${cmd.split(" ")[0]}' not on PATH`)
-                        silly(`PATH = ${opts.env.PATH}`)
+                        this.silly(`PATH = ${opts.env.PATH}`)
                     }
                     reject(err)
                 })
@@ -21785,57 +21833,57 @@ class Tool {
         const shell = `bash -c "` + escaped + `"`
         const name = opts.check ? "\tcheckExecutableExists" : "subprocessShell"
 
-        silly(`${name} running: ${cmd}`)
+        this.silly(`${name} running: ${cmd}`)
 
-        silly(`${name} env exists? ${!!opts.env}`)
+        this.silly(`${name} env exists? ${!!opts.env}`)
         opts.env = opts.env ?? { ...process__WEBPACK_IMPORTED_MODULE_4__.env, ...(await this.getEnv()) }
 
         if (process__WEBPACK_IMPORTED_MODULE_4__.env.SILLY_LOGGING) {
             let paths = (opts.env.PATH || "")
                 .split(":")
                 .filter((i) => i.includes(this.installer))
-            if (!paths) silly(`${name} no matching PATH`)
-            else silly(`${name} matching PATH=`)
-            paths.forEach((p) => silly(`${name} \t${p}`))
+            if (!paths) this.silly(`${name} no matching PATH`)
+            else this.silly(`${name} matching PATH=`)
+            paths.forEach((p) => this.silly(`${name} \t${p}`))
         }
 
         let cmdExists
         if (!opts.check) {
-            silly(`subprocessShell: ${shell}`)
+            this.silly(`subprocessShell: ${shell}`)
             const checkOpts = { ...opts, silent: true, check: true }
             cmdExists = await this.subprocessShell(
                 `command -v ${cmdName}`,
                 checkOpts,
             )
                 .then((proc) => {
-                    silly(`\tcommand exists: ${proc.stdout.trim()}`)
+                    this.silly(`\tcommand exists: ${proc.stdout.trim()}`)
                     return true
                 })
                 .catch(() => {
-                    silly(`\tcommand does not exist: ${cmdName}}`)
+                    this.silly(`\tcommand does not exist: ${cmdName}}`)
                     return false
                 })
         } else {
-            silly(`${name} checking: ${shell}`)
+            this.silly(`${name} checking: ${shell}`)
         }
         delete opts.check
 
         const proc = await this.subprocess(shell, opts).catch((err) => {
-            silly(`${name} caught error: ${err}`)
+            this.silly(`${name} caught error: ${err}`)
             if (
                 /^subprocess exited with non-zero code: bash/.test(err.message)
             ) {
                 if (cmdExists) {
-                    silly(`${name} command exists: ${cmd}, but failed`)
-                    silly(`\t${err.stderr}`)
+                    this.silly(`${name} command exists: ${cmd}, but failed`)
+                    this.silly(`\t${err.stderr}`)
                     err.message = `subprocess exited with non-zero code: ${cmd}`
                     // this.debug(`subprocessShell error: ${err.stderr}`)
                 } else {
-                    silly(`${name} command does not exist`)
+                    this.silly(`${name} command does not exist`)
                     err.message = `Unable to locate executable file: ${cmdName}`
                 }
             }
-            silly(`${name} throwing...`)
+            this.silly(`${name} throwing...`)
             throw err
         })
         return proc
@@ -21953,7 +22001,7 @@ class Tool {
      */
     async findInstaller() {
         this.info(`Finding installer: ${this.installerVersion}`)
-        const found = await this.version(this.installerVersion, true)
+        const found = await this.version(this.installerVersion, { soft: true })
         if (found) {
             this.info("Installer found, setting environment")
             await this.setEnv()
@@ -22143,7 +22191,7 @@ class Tool {
      * @returns {Object} - Environment object for use in subprocesses.
      */
     async getEnv(root) {
-        silly(`getEnv: ${root}`)
+        this.silly(`getEnv: ${root}`)
         root = root ?? (await this.findRoot())
         const env = {}
         let envPath = process__WEBPACK_IMPORTED_MODULE_4__.env.PATH ?? ""

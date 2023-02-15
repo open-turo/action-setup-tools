@@ -27,6 +27,10 @@ priority):
 Attempts to use configuration provided in the directory structure for each tool,
 but this can be overridden with additional configuration in the action.
 
+When used with self-hosted runners it's possible to pre-install the tooling you
+desire and allow `action-setup-tools` to function as a version check in CI for
+much faster workflows.
+
 ## Usage
 
 The Action relies on the checked out repository or workspace to have existing
