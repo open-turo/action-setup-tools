@@ -12,6 +12,8 @@ import { getExecOutput } from "@actions/exec"
 import findVersions from "find-versions"
 import semver from "semver"
 
+/** TODO: Remove me */
+
 // Superclass for all supported tools
 export default class Tool {
     static registry = {}
@@ -148,7 +150,7 @@ export default class Tool {
      * @returns {string} - The version string that was found.
      */
     async version(cmd, opts) {
-        opts = opts ?? { soft: false, env: {} }
+        opts = opts ?? { soft: false, env: undefined }
         const { soft, env } = opts
         this.silly(`version cmd: ${cmd}`)
         let check = this.subprocessShell(cmd, { silent: true, env: env })
@@ -221,7 +223,29 @@ export default class Tool {
             this.info("    not checking for installed tools")
             return true
         }
-        this.debug("checking for installed version")
+
+        this.debug("checking for installed version on system without getEnv")
+        const system = await this.version(this.toolVersion, {
+            soft: true,
+            env: { ...process.env },
+        }).catch((err) => {
+            if (/^subprocess exited with non-zero code:/.test(err.message)) {
+                // This can happen if there's no default version, so we
+                // don't want to hard error here
+                return null
+            }
+            throw err
+        })
+
+        // We found a system version on the unmodified parent process PATH
+        if (system) {
+            if (this.satifiesSemVer(version, system)) {
+                // Exit indicating we do not need to install anything
+                return false
+            }
+        }
+
+        this.debug("checking for installed version, with getEnv")
         const found = await this.version(this.toolVersion, {
             soft: true,
         }).catch((err) => {
@@ -236,24 +260,36 @@ export default class Tool {
         // this.debug(`found version: ${found}`)
         if (!found) return true
 
-        const semantic = `^${version.replace(/\.\d+$/, ".x")}`
-        const ok = semver.satisfies(found, semantic)
-        if (!ok) {
-            // If we haven't found an existing, matching version on the PATH, we
-            // set our environment so we can actually install the one we want
+        // If the found version string satisifes semVer with our tool
+        // environment, we want to set the environment, and return indicating we
+        // don't need to install anything further
+        if (this.satifiesSemVer(version, found)) {
             this.setEnv()
             this.info(
-                `Installed tool version ${found} does not satisfy ` +
-                    `${semantic}...`,
+                `Found version ${found} that satisfies SemVer, skipping...`,
             )
-            return true
+            return false
         }
 
         this.info(
-            `Found installed tool version ${found} that satisfies ${semantic},` +
-                ` skipping setup...`,
+            `Found version ${found} does not satisfy SemVer, installing...`,
         )
-        return false
+        return true
+    }
+
+    /**
+     * Return true if `found` version string satisifies `expected` according to
+     * the SemVer constraints for this tool.
+     *
+     * TODO: Allow Tool subclasses to configure SemVer constraints.
+     *
+     * @param {string} expected
+     * @param {string} found
+     * @returns
+     */
+    satifiesSemVer(expected, found) {
+        const semantic = `^${expected.replace(/\.\d+$/, ".x")}`
+        return semver.satisfies(found, semantic)
     }
 
     /**
