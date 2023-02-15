@@ -20,6 +20,8 @@ export default class Python extends Tool {
             ".python-version",
         )
         if (!(await this.haveVersion(checkVersion))) {
+            // Ensure pip exists as well, but don't error if it breaks
+            await this.installPip().catch(() => {})
             return checkVersion
         }
 
@@ -100,6 +102,30 @@ export default class Python extends Tool {
         this.info(`Downloaded pyenv to ${root}`)
 
         return root
+    }
+
+    /**
+     * Run `npm install -g yarn` and `nodenv rehash` to ensure `yarn` is on the CLI.
+     */
+    async installPip() {
+        // Check for an existing version
+        const pipVersion = await this.version("pip --version", {
+            soft: true,
+        }).catch(() => {})
+        if (pipVersion) {
+            this.debug(`pip is already installed (${pipVersion})`)
+            return
+        }
+
+        this.info("Installing pip")
+        const url = "https://bootstrap.pypa.io/get-pip.py"
+        const download = await this.downloadTool(url)
+        await this.subprocessShell(`python ${download}`)
+
+        // Just run `pyenv rehash` always and ignore errors because we might be
+        // in a setup-python environment that doesn't have it
+        this.info("Rehashing pyenv shims")
+        await this.subprocessShell("pyenv rehash").catch(() => {})
     }
 }
 
