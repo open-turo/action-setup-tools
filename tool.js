@@ -664,7 +664,14 @@ export default class Tool {
 
         const re = new RegExp(`/(bin|libexec)/${tool}$`)
         toolPath = toolPath.replace(re, "")
-        if (fs.existsSync(toolPath)) return toolPath
+        if (fs.existsSync(toolPath)) {
+            this.debug(`Found tool root: ${toolPath}`)
+            if (toolPath == "/usr/local") {
+                this.debug("Using default path due to /usr/local install")
+                return defaultPath
+            }
+            return toolPath
+        }
 
         let err = `${toolEnv} misconfigured: ${toolPath} does not exist`
         this.error(err)
