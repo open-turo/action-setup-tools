@@ -394,7 +394,7 @@ export default class Tool {
                     return true
                 })
                 .catch(() => {
-                    this.silly(`\tcommand does not exist: ${cmdName}}`)
+                    this.silly(`\tcommand does not exist: ${cmdName}`)
                     return false
                 })
         } else {
