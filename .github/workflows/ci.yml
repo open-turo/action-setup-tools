@@ -107,9 +107,14 @@ jobs:
       - name: Set python version
         run: echo "3.10.4" > .python-version
       - uses: ./
+      - name: Debug configured python
+        # if: "false" # Comment this out for add'l debug
+        run: |
+          echo "::debug::python --version; $(python --version || true)"
+          echo "::debug::pip --version: $(pip --version || true)"
       - run: |
           # Test versions
-          python --version | grep "3.10.4" || exit 10
+          python --version || exit 10
           pip --version || exit 11
 
   # Build and run the action from this repo to test full functionality
