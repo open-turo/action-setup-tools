@@ -194,9 +194,9 @@ export default class Node extends Tool {
      */
     async installYarn() {
         // Check for an existing version
-        let yarnVersion = await this.version("yarn --version", true).catch(
-            () => {},
-        )
+        let yarnVersion = await this.version("yarn --version", {
+            soft: true,
+        }).catch(() => {})
         if (yarnVersion) {
             this.debug(`yarn is already installed (${yarnVersion})`)
             return
