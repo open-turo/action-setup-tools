@@ -126,6 +126,9 @@ export default class Python extends Tool {
         // in a setup-python environment that doesn't have it
         this.info("Rehashing pyenv shims")
         await this.subprocessShell("pyenv rehash").catch(() => {})
+
+        // Sanity check the pip command works, and output its version
+        await this.version("pip --version")
     }
 }
 
