@@ -105,12 +105,13 @@ export default class Python extends Tool {
     }
 
     /**
-     * Run `npm install -g yarn` and `nodenv rehash` to ensure `yarn` is on the CLI.
+     * Ensures pip is installed.
      */
     async installPip() {
-        // Check for an existing version
+        // Check for an existing version using whatever environment has been set
         const pipVersion = await this.version("pip --version", {
             soft: true,
+            env: { ...process.env },
         }).catch(() => {})
         if (pipVersion) {
             this.debug(`pip is already installed (${pipVersion})`)
@@ -128,7 +129,7 @@ export default class Python extends Tool {
         await this.subprocessShell("pyenv rehash").catch(() => {})
 
         // Sanity check the pip command works, and output its version
-        await this.version("pip --version")
+        await this.version("pip --version", { env: { ...process.env } })
     }
 }
 
