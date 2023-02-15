@@ -62,7 +62,9 @@ describe("run", () => {
             expect(proc.stdout).toContain(`go version: ${goVersion}`)
             expect(proc.stdout).toContain("golang success!")
             expect(proc.stdout).toContain(
-                `java -version: ${desiredJavaVersion}`,
+                NO_TEST_JAVA
+                    ? "skipping"
+                    : `java -version: ${desiredJavaVersion}`,
             )
             expect(proc.stdout).toContain(
                 NO_TEST_JAVA ? "skipping" : "java success!",
