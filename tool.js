@@ -131,13 +131,27 @@ export default class Tool {
      * parsable version strings in an array. provide true for
      * useLooseVersionFinding when the expected version string contains
      * non-version appearing values such as go1.16.8.
+     *
+     * ```
+     * opts = {
+     *   soft: false, // If true, don't exit the action if no version is found.
+     *   env: {}, // Environment variables to set for the subprocess.
+     * }
+     * ```
+     *
+     * If `opts.env` is NOT set, then `this.getEnv()` will be invoked by
+     * `this.subprocessShell(...)` to set PATH and tool root variables as
+     * appropriate.
+     *
      * @param {string} cmd - Command to run to find version output.
-     * @param {boolean} soft - Set to a truthy value to skip hard failure.
+     * @param {Object} opts  - Options for handling different behaviors
      * @returns {string} - The version string that was found.
      */
-    async version(cmd, soft) {
+    async version(cmd, opts) {
+        opts = opts ?? { soft: false, env: {} }
+        const { soft, env } = opts
         this.silly(`version cmd: ${cmd}`)
-        let check = this.subprocessShell(cmd, { silent: true })
+        let check = this.subprocessShell(cmd, { silent: true, env: env })
             .then((proc) => {
                 if (proc.stdout) {
                     let stdoutVersions = this.versionParser(proc.stdout)
@@ -208,18 +222,16 @@ export default class Tool {
             return true
         }
         this.debug("checking for installed version")
-        const found = await this.version(this.toolVersion, true).catch(
-            (err) => {
-                if (
-                    /^subprocess exited with non-zero code:/.test(err.message)
-                ) {
-                    // This can happen if there's no default version, so we
-                    // don't want to hard error here
-                    return null
-                }
-                throw err
-            },
-        )
+        const found = await this.version(this.toolVersion, {
+            soft: true,
+        }).catch((err) => {
+            if (/^subprocess exited with non-zero code:/.test(err.message)) {
+                // This can happen if there's no default version, so we
+                // don't want to hard error here
+                return null
+            }
+            throw err
+        })
 
         // this.debug(`found version: ${found}`)
         if (!found) return true
@@ -489,7 +501,7 @@ export default class Tool {
      */
     async findInstaller() {
         this.info(`Finding installer: ${this.installerVersion}`)
-        const found = await this.version(this.installerVersion, true)
+        const found = await this.version(this.installerVersion, { soft: true })
         if (found) {
             this.info("Installer found, setting environment")
             await this.setEnv()
