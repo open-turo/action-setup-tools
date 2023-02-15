@@ -21259,16 +21259,20 @@ function findVersions(stringWithVersions, {loose = false} = {}) {
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
 /* unused harmony export default */
-/* harmony import */ var assert__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(9491);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(2186);
-/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(4067);
+/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2037);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(1017);
+/* harmony import */ var assert__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(9491);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(2186);
+/* harmony import */ var _tool_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(4067);
 
 
 
 
 
 
-class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
+
+
+class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
     static tool = "python"
     static envVar = "PYENV_ROOT"
     static envPaths = ["bin", "shims", "plugins/pyenv-virtualenv/shims"]
@@ -21298,7 +21302,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
 
         // Set downstream environment variable for future steps in this Job
         if (isVersionOverridden) {
-            _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("PYENV_VERSION", checkVersion)
+            _actions_core__WEBPACK_IMPORTED_MODULE_3__.exportVariable("PYENV_VERSION", checkVersion)
         }
 
         // using -s option to skip the install and become a no-op if the
@@ -21319,7 +21323,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         await this.version("pip --version")
 
         // If we got this far, we have successfully configured python.
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput(Python.tool, checkVersion)
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.setOutput(Python.tool, checkVersion)
         this.info("python success!")
         return checkVersion
     }
@@ -21347,7 +21351,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
     }
 
     async setEnv() {
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable("PYENV_VIRTUALENV_INIT", 1)
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.exportVariable("PYENV_VIRTUALENV_INIT", 1)
         return super.setEnv()
     }
 
@@ -21358,7 +21362,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
      * @return {string} The value of PYENV_ROOT.
      */
     async install(root) {
-        assert__WEBPACK_IMPORTED_MODULE_0__(root, "root is required")
+        assert__WEBPACK_IMPORTED_MODULE_2__(root, "root is required")
         const gh = `https://${process.env.GITHUB_SERVER || "github.com"}/pyenv`
         const url = `${gh}/pyenv/archive/refs/heads/master.tar.gz`
 
@@ -21388,6 +21392,10 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         await this.subprocessShell(`python ${download}`, {
             env: { ...process.env },
         })
+
+        // get-pip.py will install to $HOME/.local/bin for a system install, so
+        // we add it to the PATH or things break
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.addPath(path__WEBPACK_IMPORTED_MODULE_1__.join(os__WEBPACK_IMPORTED_MODULE_0__.homedir(), ".local/bin"))
 
         // Just run `pyenv rehash` always and ignore errors because we might be
         // in a setup-python environment that doesn't have it

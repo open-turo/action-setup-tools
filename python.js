@@ -1,3 +1,5 @@
+import os from "os"
+import path from "path"
 import assert from "assert"
 
 import core from "@actions/core"
@@ -124,6 +126,10 @@ export default class Python extends Tool {
         await this.subprocessShell(`python ${download}`, {
             env: { ...process.env },
         })
+
+        // get-pip.py will install to $HOME/.local/bin for a system install, so
+        // we add it to the PATH or things break
+        core.addPath(path.join(os.homedir(), ".local/bin"))
 
         // Just run `pyenv rehash` always and ignore errors because we might be
         // in a setup-python environment that doesn't have it
