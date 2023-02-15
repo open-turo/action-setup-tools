@@ -14,7 +14,9 @@ import {
 Mute.all()
 const rcfile = ".sdkmanrc"
 
-describe("runAction java", () => {
+const describeJava = process.env.NO_TEST_JAVA ? describe.skip : describe
+
+describeJava("runAction java", () => {
     const desiredVersion = "17.0.5"
     const sdkmanVersionIdentifier = `${desiredVersion}-tem`
     const cleaner = new Cleaner(Java, "sdkman", [rcfile])
@@ -52,7 +54,7 @@ describe("runAction java", () => {
     })
 })
 
-describe("Java", () => {
+describeJava("Java", () => {
     const cleaner = new Cleaner(Java, "sdkman", [rcfile])
     afterEach(cleaner.clean)
 
@@ -102,7 +104,7 @@ describe("Java", () => {
     })
 })
 
-describe("install", () => {
+describeJava("install", () => {
     const cleaner = new Cleaner(Java, "sdkman", [rcfile])
     afterEach(cleaner.clean)
 
