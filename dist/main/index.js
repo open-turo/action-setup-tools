@@ -20692,9 +20692,14 @@ class SdkmanTool extends tool/* default */.Z {
      */
     async findRoot() {
         ;(function () {
+            // Shortcut this
+            if (this.sdkShimChecked) return
+
             // All of this is to check if we have a sdkman install that hasn't
             // been shimmed which won't be found correctly
             let check = this.defaultRoot
+            this.debug(`checking with defaultRoot: ${check}`)
+
             if (!external_fs_.existsSync(check)) return
             this.debug("defaultRoot exists")
 
@@ -20703,11 +20708,16 @@ class SdkmanTool extends tool/* default */.Z {
             this.debug("sdkman-init.sh exists")
 
             check = external_path_.join(this.defaultRoot, "bin", "sdk")
-            if (external_fs_.existsSync(check)) return
+            if (external_fs_.existsSync(check)) {
+                this.debug(`sdk shim found at: ${check}`)
+                this.sdkShimChecked = true
+                return
+            }
             this.debug("sdk shim does not exist")
 
             this.shimSdk(this.defaultRoot)
         }.bind(this)())
+
         return super.findRoot()
     }
 
@@ -22157,7 +22167,14 @@ class Tool {
 
         const re = new RegExp(`/(bin|libexec)/${tool}$`)
         toolPath = toolPath.replace(re, "")
-        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(toolPath)) return toolPath
+        if (fs__WEBPACK_IMPORTED_MODULE_0__.existsSync(toolPath)) {
+            this.debug(`Found tool root: ${toolPath}`)
+            if (toolPath == "/usr/local") {
+                this.debug("Using default path due to /usr/local install")
+                return defaultPath
+            }
+            return toolPath
+        }
 
         let err = `${toolEnv} misconfigured: ${toolPath} does not exist`
         this.error(err)
@@ -22203,8 +22220,20 @@ class Tool {
         tar.args = tar.args ?? ["-xz"]
         // Allow stripping directories
         if (tar.strip) tar.args.push(`--strip-components=${tar.strip}`)
+
+        // Toggle debug output 'cause it's super noisy during tar extraction
+        const runner_debug = process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG
+        const step_debug = process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG
+        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG = undefined
+        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG = undefined
+
         // Extract the tarball
         const dir = await _actions_tool_cache__WEBPACK_IMPORTED_MODULE_8__.extractTar(download, tar.dest, tar.args)
+
+        // Restore the originals
+        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_RUNNER_DEBUG = runner_debug
+        process__WEBPACK_IMPORTED_MODULE_4__.env.ACTIONS_STEP_DEBUG = step_debug
+
         // Try to remove the downloaded file now that we have extracted it, but
         // allow it to happen async and in the background, and we don't care if
         // it fails
