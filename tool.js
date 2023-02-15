@@ -12,12 +12,6 @@ import { getExecOutput } from "@actions/exec"
 import findVersions from "find-versions"
 import semver from "semver"
 
-// Only create the silly logger once so it's a fast passthrough that the
-// runtime can optimize away
-const silly = process.env.SILLY_LOGGING
-    ? (...msg) => core.debug(`SILLY ${msg.join(" ")}`)
-    : () => {}
-
 // Superclass for all supported tools
 export default class Tool {
     static registry = {}
@@ -79,6 +73,12 @@ export default class Tool {
         loggers.forEach((logger) => {
             this[logger] = (...msg) => this.log(logger, msg)
         })
+
+        // Only create the this.silly logger once so it's a fast passthrough that the
+        // runtime can optimize away
+        this.silly = process.env.SILLY_LOGGING
+            ? (...msg) => this.debug(`SILLY ${msg.join(" ")}`)
+            : () => {}
     }
 
     // Log a message using method from core and msg prepended with the name
@@ -136,7 +136,7 @@ export default class Tool {
      * @returns {string} - The version string that was found.
      */
     async version(cmd, soft) {
-        silly(`version cmd: ${cmd}`)
+        this.silly(`version cmd: ${cmd}`)
         let check = this.subprocessShell(cmd, { silent: true })
             .then((proc) => {
                 if (proc.stdout) {
@@ -163,7 +163,7 @@ export default class Tool {
         }
 
         return check.catch((err) => {
-            silly(`version error: ${err}`)
+            this.silly(`version error: ${err}`)
             // Return a soft/empty version here
             if (/Unable to locate executable file:/.test(err.message)) {
                 return null
@@ -258,7 +258,7 @@ export default class Tool {
             exitCode: 0,
         }
 
-        silly(`subprocess env exists?: ${!!opts.env}`)
+        this.silly(`subprocess env exists?: ${!!opts.env}`)
         // Always merge the passed environment on top of the process environment so
         // we don't lose execution context
         // opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
@@ -300,7 +300,7 @@ export default class Tool {
                 .catch((err) => {
                     if (/^Unable to locate executable file/.test(err.message)) {
                         this.debug(`'${cmd.split(" ")[0]}' not on PATH`)
-                        silly(`PATH = ${opts.env.PATH}`)
+                        this.silly(`PATH = ${opts.env.PATH}`)
                     }
                     reject(err)
                 })
@@ -321,57 +321,57 @@ export default class Tool {
         const shell = `bash -c "` + escaped + `"`
         const name = opts.check ? "\tcheckExecutableExists" : "subprocessShell"
 
-        silly(`${name} running: ${cmd}`)
+        this.silly(`${name} running: ${cmd}`)
 
-        silly(`${name} env exists? ${!!opts.env}`)
+        this.silly(`${name} env exists? ${!!opts.env}`)
         opts.env = opts.env ?? { ...process.env, ...(await this.getEnv()) }
 
         if (process.env.SILLY_LOGGING) {
             let paths = (opts.env.PATH || "")
                 .split(":")
                 .filter((i) => i.includes(this.installer))
-            if (!paths) silly(`${name} no matching PATH`)
-            else silly(`${name} matching PATH=`)
-            paths.forEach((p) => silly(`${name} \t${p}`))
+            if (!paths) this.silly(`${name} no matching PATH`)
+            else this.silly(`${name} matching PATH=`)
+            paths.forEach((p) => this.silly(`${name} \t${p}`))
         }
 
         let cmdExists
         if (!opts.check) {
-            silly(`subprocessShell: ${shell}`)
+            this.silly(`subprocessShell: ${shell}`)
             const checkOpts = { ...opts, silent: true, check: true }
             cmdExists = await this.subprocessShell(
                 `command -v ${cmdName}`,
                 checkOpts,
             )
                 .then((proc) => {
-                    silly(`\tcommand exists: ${proc.stdout.trim()}`)
+                    this.silly(`\tcommand exists: ${proc.stdout.trim()}`)
                     return true
                 })
                 .catch(() => {
-                    silly(`\tcommand does not exist: ${cmdName}}`)
+                    this.silly(`\tcommand does not exist: ${cmdName}}`)
                     return false
                 })
         } else {
-            silly(`${name} checking: ${shell}`)
+            this.silly(`${name} checking: ${shell}`)
         }
         delete opts.check
 
         const proc = await this.subprocess(shell, opts).catch((err) => {
-            silly(`${name} caught error: ${err}`)
+            this.silly(`${name} caught error: ${err}`)
             if (
                 /^subprocess exited with non-zero code: bash/.test(err.message)
             ) {
                 if (cmdExists) {
-                    silly(`${name} command exists: ${cmd}, but failed`)
-                    silly(`\t${err.stderr}`)
+                    this.silly(`${name} command exists: ${cmd}, but failed`)
+                    this.silly(`\t${err.stderr}`)
                     err.message = `subprocess exited with non-zero code: ${cmd}`
                     // this.debug(`subprocessShell error: ${err.stderr}`)
                 } else {
-                    silly(`${name} command does not exist`)
+                    this.silly(`${name} command does not exist`)
                     err.message = `Unable to locate executable file: ${cmdName}`
                 }
             }
-            silly(`${name} throwing...`)
+            this.silly(`${name} throwing...`)
             throw err
         })
         return proc
@@ -679,7 +679,7 @@ export default class Tool {
      * @returns {Object} - Environment object for use in subprocesses.
      */
     async getEnv(root) {
-        silly(`getEnv: ${root}`)
+        this.silly(`getEnv: ${root}`)
         root = root ?? (await this.findRoot())
         const env = {}
         let envPath = process.env.PATH ?? ""
