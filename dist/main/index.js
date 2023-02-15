@@ -21031,8 +21031,10 @@ class Node extends _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z {
             desiredVersion,
         )
         if (!(await this.haveVersion(checkVersion))) {
-            // Ensure yarn is present as well, but don't error if it breaks
-            await this.installYarn().catch(() => {})
+            if (checkVersion) {
+                // Ensure yarn is present as well, but don't error if it breaks
+                await this.installYarn().catch(() => {})
+            }
             return checkVersion
         }
 
@@ -21288,8 +21290,10 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
             ".python-version",
         )
         if (!(await this.haveVersion(checkVersion))) {
-            // Ensure pip exists as well, but don't error if it breaks
-            await this.installPip().catch(() => {})
+            if (checkVersion) {
+                // Ensure pip exists as well, but don't error if it breaks
+                await this.installPip().catch(() => {})
+            }
             return checkVersion
         }
 

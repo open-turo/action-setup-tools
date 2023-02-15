@@ -26,8 +26,10 @@ export default class Node extends Tool {
             desiredVersion,
         )
         if (!(await this.haveVersion(checkVersion))) {
-            // Ensure yarn is present as well, but don't error if it breaks
-            await this.installYarn().catch(() => {})
+            if (checkVersion) {
+                // Ensure yarn is present as well, but don't error if it breaks
+                await this.installYarn().catch(() => {})
+            }
             return checkVersion
         }
 

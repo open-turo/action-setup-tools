@@ -22,8 +22,10 @@ export default class Python extends Tool {
             ".python-version",
         )
         if (!(await this.haveVersion(checkVersion))) {
-            // Ensure pip exists as well, but don't error if it breaks
-            await this.installPip().catch(() => {})
+            if (checkVersion) {
+                // Ensure pip exists as well, but don't error if it breaks
+                await this.installPip().catch(() => {})
+            }
             return checkVersion
         }
 
