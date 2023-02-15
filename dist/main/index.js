@@ -21476,8 +21476,6 @@ Terraform.register()
 
 
 
-/** TODO: Remove me */
-
 // Superclass for all supported tools
 class Tool {
     static registry = {}

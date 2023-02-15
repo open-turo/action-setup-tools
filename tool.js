@@ -12,8 +12,6 @@ import { getExecOutput } from "@actions/exec"
 import findVersions from "find-versions"
 import semver from "semver"
 
-/** TODO: Remove me */
-
 // Superclass for all supported tools
 export default class Tool {
     static registry = {}
