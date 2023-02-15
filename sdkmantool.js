@@ -26,9 +26,14 @@ export default class SdkmanTool extends Tool {
      */
     async findRoot() {
         ;(function () {
+            // Shortcut this
+            if (this.sdkShimChecked) return
+
             // All of this is to check if we have a sdkman install that hasn't
             // been shimmed which won't be found correctly
             let check = this.defaultRoot
+            this.debug(`checking with defaultRoot: ${check}`)
+
             if (!fs.existsSync(check)) return
             this.debug("defaultRoot exists")
 
@@ -37,11 +42,16 @@ export default class SdkmanTool extends Tool {
             this.debug("sdkman-init.sh exists")
 
             check = path.join(this.defaultRoot, "bin", "sdk")
-            if (fs.existsSync(check)) return
+            if (fs.existsSync(check)) {
+                this.debug(`sdk shim found at: ${check}`)
+                this.sdkShimChecked = true
+                return
+            }
             this.debug("sdk shim does not exist")
 
             this.shimSdk(this.defaultRoot)
         }.bind(this)())
+
         return super.findRoot()
     }
 
