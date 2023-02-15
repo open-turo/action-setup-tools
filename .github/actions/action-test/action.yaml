@@ -19,7 +19,7 @@ runs:
       uses: ./versions
       with:
         go: 1.17.6
-        java: 17.0.2-tem
+        # java: 17.0.2-tem  # TODO: Uncomment when sdkman isn't broken
         node: 16.13.2
         python: 3.10.2
         terraform: 1.1.5
@@ -28,7 +28,7 @@ runs:
       if: inputs.use-versions != 'true'
       run: |
         # Write version files
-        echo "java=17.0.2-tem" > .sdkmanrc
+        # echo "java=17.0.2-tem" > .sdkmanrc  # TODO: Broooken
         echo "16.13.2" > .node-version
         echo "3.10.2" > .python-version
         echo "1.17.6" > .go-version
@@ -40,7 +40,7 @@ runs:
       run: |
         # Check versions
         go version | grep "1.17.6" || echo "::error::go version mismatch"
-        java -version 2>&1 | grep "17.0.2" || echo "::error::java version mismatch"
+        # java -version 2>&1 | grep "17.0.2" || echo "::error::java version mismatch"  # TODO: Busted
         node --version | grep "16.13.2" || echo "::error::node version mismatch"
         yarn --version || echo "::error::yarn not available"
         python --version || grep "3.10.2" || echo "::error::python version mismatch"
