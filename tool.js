@@ -237,7 +237,9 @@ export default class Tool {
 
         // We found a system version on the unmodified parent process PATH
         if (system) {
+            this.info(`found system version: ${system}`)
             if (this.satifiesSemVer(version, system)) {
+                this.debug(`system version ${system} satisfies SemVer`)
                 // Exit indicating we do not need to install anything
                 return false
             }
