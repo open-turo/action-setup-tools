@@ -21385,12 +21385,16 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z {
         this.info("Installing pip")
         const url = "https://bootstrap.pypa.io/get-pip.py"
         const download = await this.downloadTool(url)
-        await this.subprocessShell(`python ${download}`)
+        await this.subprocessShell(`python ${download}`, {
+            env: { ...process.env },
+        })
 
         // Just run `pyenv rehash` always and ignore errors because we might be
         // in a setup-python environment that doesn't have it
         this.info("Rehashing pyenv shims")
-        await this.subprocessShell("pyenv rehash").catch(() => {})
+        await this.subprocessShell("pyenv rehash", {
+            env: { ...process.env },
+        }).catch(() => {})
 
         // Sanity check the pip command works, and output its version
         await this.version("pip --version", { env: { ...process.env } })
