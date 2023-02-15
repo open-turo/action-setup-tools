@@ -4,6 +4,8 @@ import { runAction, Mute, runJS, ignoreInstalled } from "./testutil"
 
 Mute.all()
 
+const NO_TEST_JAVA = !!process.env.NO_TEST_JAVA
+
 beforeAll(() => {
     process.env.RUN_ASYNC = "false"
 })
@@ -42,7 +44,9 @@ describe("run", () => {
     it("works with all tools", async () => {
         const goVersion = "1.17.6"
         const desiredJavaVersion = "17.0.5"
-        const sdkmanJavaVersionIdentifier = `${desiredJavaVersion}-tem`
+        const sdkmanJavaVersionIdentifier = NO_TEST_JAVA
+            ? ""
+            : `${desiredJavaVersion}-tem`
         const tfVersion = "1.1.2"
         const nodeVersion = "16.13.2"
         const pyVersion = process.env.TEST_SLOW ? "3.10.2" : ""
@@ -60,7 +64,9 @@ describe("run", () => {
             expect(proc.stdout).toContain(
                 `java -version: ${desiredJavaVersion}`,
             )
-            expect(proc.stdout).toContain("java success!")
+            expect(proc.stdout).toContain(
+                NO_TEST_JAVA ? "skipping" : "java success!",
+            )
             expect(proc.stdout).toContain(`node --version: ${nodeVersion}`)
             expect(proc.stdout).toContain("node success!")
             expect(proc.stdout).toContain(`terraform --version: ${tfVersion}`)
@@ -129,15 +135,15 @@ describe("inline", () => {
 
     it("handles an error in serial", async () => {
         process.env.RUN_ASYNC = "false"
-        process.env.INPUT_GO = "8.0.123" // deliberately bad version
+        process.env.INPUT_GO = "99.99.0" // deliberately bad version
         return expect(run()).rejects.toThrow(
             "subprocess exited with non-zero code: goenv",
         )
     })
 
     it("handles multiple errors in parallel", async () => {
-        process.env.INPUT_GO = "8.0.123" // deliberately bad version
-        process.env.INPUT_NODE = "8.0.234" // deliberately bad version
+        process.env.INPUT_GO = "99.99.1" // deliberately bad version
+        process.env.INPUT_NODE = "99.99.2" // deliberately bad version
         return expect(run()).rejects.toThrow(
             /subprocess exited with non-zero code: .*/,
         )
@@ -145,7 +151,7 @@ describe("inline", () => {
 
     it("handles an error wrapped in runner", async () => {
         process.env.RUN_AUTO = "true"
-        process.env.INPUT_GO = "8.0.123" // deliberately bad version
+        process.env.INPUT_GO = "99.99.3" // deliberately bad version
         return expect(runner()).resolves.toMatch(
             /subprocess exited with non-zero code: goenv/,
         )
