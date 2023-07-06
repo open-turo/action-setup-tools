@@ -85,6 +85,8 @@ export default class Node extends Tool {
      * @returns {Promise<void>}
      */
     getVersionData() {
+        // this is a temporary fix
+        // TODO: find a way to fetch latest list of node-versions
         return nodeVersions
     }
 
