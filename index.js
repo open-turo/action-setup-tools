@@ -19,7 +19,7 @@ export default async function run() {
         core.info("Running setups in parallel")
         const setups = Tool.all().map(async (tool) => {
             try {
-                await tool.setup(core.getInput(tool.name));
+                await tool.setup(core.getInput(tool.name))
             } catch (error) {
                 core.error(`caught error in ${tool.name} setup: ${error}`)
                 throw error
