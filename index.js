@@ -17,9 +17,14 @@ export default async function run() {
     // Wait for all the setup() promises to resolve
     if (runAsync) {
         core.info("Running setups in parallel")
-        const setups = Tool.all().map((tool) =>
-            tool.setup(core.getInput(tool.name)),
-        )
+        const setups = Tool.all().map(async (tool) => {
+            try {
+                await tool.setup(core.getInput(tool.name));
+            } catch (error) {
+                core.error(`caught error in ${tool.name} setup: ${error}`)
+                throw error
+            }
+        })
         return Promise.all(setups)
     } else {
         core.info("Running setups sequentially")

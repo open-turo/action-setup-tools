@@ -20667,9 +20667,14 @@ async function run() {
     // Wait for all the setup() promises to resolve
     if (runAsync) {
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups in parallel")
-        const setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all().map((tool) =>
-            tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name)),
-        )
+        const setups = _tool_js__WEBPACK_IMPORTED_MODULE_6__/* ["default"].all */ .Z.all().map(async (tool) => {
+            try {
+                await tool.setup(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(tool.name));
+            } catch (error) {
+                _actions_core__WEBPACK_IMPORTED_MODULE_0__.error(`caught error in ${tool.name} setup: ${error}`)
+                throw error
+            }
+        })
         return Promise.all(setups)
     } else {
         _actions_core__WEBPACK_IMPORTED_MODULE_0__.info("Running setups sequentially")
