@@ -1,7 +1,6 @@
 import path from "path"
 import assert from "assert"
 import fsPromises from "fs/promises"
-import util from "util"
 
 import core from "@actions/core"
 import findVersions from "find-versions"
