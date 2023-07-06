@@ -8,6 +8,7 @@ import core from "@actions/core"
 import findVersions from "find-versions"
 
 import Tool from "./tool.js"
+import { nodeVersions } from "./node-version-data.js"
 
 const getVersionData = util.promisify(nodeVersionData)
 
@@ -83,6 +84,19 @@ export default class Node extends Tool {
     }
 
     /**
+     * Download Node version data. If requests fail, use a local file
+     * @returns {Promise<void>}
+     */
+    async getVersionData() {
+        try {
+            return await getVersionData()
+        } catch (e) {
+            this.warning(`Failed to download Node version data: ${e.message}`)
+            return nodeVersions
+        }
+    }
+
+    /**
      * Given an nvmrc node version spec, convert it to a SemVer node version
      * @param {String} fileName File where to look for the node version
      * @returns {Promise<string | undefined>} Parsed version
@@ -93,7 +107,7 @@ export default class Node extends Tool {
             return undefined
         }
         // Versions are sorted from newest to oldest
-        const versionData = await getVersionData()
+        const versionData = await this.getVersionData()
         let version
         if (/^lts\/.*/i.test(nodeVersion)) {
             if (nodeVersion === "lts/*") {
