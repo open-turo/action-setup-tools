@@ -2,6 +2,7 @@ import { jest } from "@jest/globals"
 import fs from "fs"
 
 import {
+    createNodeVersion,
     runAction,
     runActionExpectError,
     ignoreInstalled,
@@ -11,6 +12,22 @@ import {
 } from "./testutil"
 
 Mute.all()
+
+const nodeVersions = [
+    createNodeVersion({ version: "v55.4.0" }),
+    createNodeVersion({ version: "v54.0.0", lts: "latest" }),
+    createNodeVersion({ version: "v52.0.0", lts: "test" }),
+    createNodeVersion({ version: "v51.3.1" }),
+    createNodeVersion({ version: "v51.0.0" }),
+]
+
+// Mock the node-version-data library so we can play with a controlled set of node versions
+// and write predictable expectations in the tests
+jest.unstable_mockModule("./node-version-data.js", () => {
+    return {
+        nodeVersions,
+    }
+})
 
 // Jest has issues when mocking entire modules in the ESM world
 // This is a workaround for that. See https://github.com/facebook/jest/issues/10025#issuecomment-1147776145
