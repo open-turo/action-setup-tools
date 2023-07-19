@@ -1,5 +1,6 @@
 import { jest } from "@jest/globals"
 import fs from "fs"
+import nock from "nock"
 
 import {
     createNodeVersion,
@@ -25,7 +26,10 @@ const nodeVersions = [
 // and write predictable expectations in the tests
 jest.unstable_mockModule("./node-version-data.js", () => {
     return {
-        nodeVersions,
+        nodeVersions: [
+            ...nodeVersions,
+            createNodeVersion({ version: "v49.0.0" }),
+        ],
     }
 })
 
@@ -100,6 +104,17 @@ describe("setup", () => {
         jest.spyOn(fs, "readFileSync").mockImplementation(readFile)
     }
 
+    const mockNodeVersionsApiCall = (shouldThrowError) => {
+        const api = nock("https://nodejs.org")
+        const method = api.get("/download/release/index.json")
+        if (shouldThrowError) {
+            method.reply(500)
+        } else {
+            method.reply(200, nodeVersions)
+        }
+        return api
+    }
+
     it.each([
         {
             fileName: ".node-version",
@@ -116,12 +131,21 @@ describe("setup", () => {
     ])(
         `parses node versions correctly for: %o`,
         async ({ fileName, content, expectedVersion }) => {
+            const api = mockNodeVersionsApiCall()
             mockNodeVersionFile(fileName, content)
             // Can't call setup here yet, as the fs mock breaks other inner calls
             const [version] = await new Node().getNodeVersion()
+            expect(api.isDone()).toBeTruthy()
             expect(version).toEqual(expectedVersion)
         },
     )
+
+    it("falls back to local node version cache when it fails to fetch it", async () => {
+        mockNodeVersionsApiCall(true)
+        mockNodeVersionFile(".node-version", "49")
+        const [version] = await new Node().getNodeVersion()
+        expect(version).toEqual("49.0.0")
+    })
 
     it("throws an error when the version cannot be parsed", () => {
         mockNodeVersionFile(".node-version", "invalid")
