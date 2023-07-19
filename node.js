@@ -1,6 +1,7 @@
 import path from "path"
 import assert from "assert"
 import fsPromises from "fs/promises"
+import fetch from "node-fetch"
 
 import core from "@actions/core"
 import findVersions from "find-versions"
@@ -83,10 +84,23 @@ export default class Node extends Tool {
      * Download Node version data. If requests fail, use a local file
      * @returns {Promise<void>}
      */
-    getVersionData() {
-        // this is a temporary fix
-        // TODO: find a way to fetch latest list of node-versions
-        return nodeVersions
+    async getVersionData() {
+        const nodeVersionUrl = "https://nodejs.org/download/release/index.json"
+        try {
+            return await fetch(nodeVersionUrl).then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        `Failed to fetch Node version data: ${response.status} ${response.statusText}`,
+                    )
+                }
+                return response.json()
+            })
+        } catch (e) {
+            this.error(
+                `Failed to fetch Node version data: ${e.message}. Returning local cache`,
+            )
+            return nodeVersions
+        }
     }
 
     /**
@@ -100,7 +114,7 @@ export default class Node extends Tool {
             return undefined
         }
         // Versions are sorted from newest to oldest
-        const versionData = this.getVersionData()
+        const versionData = await this.getVersionData()
         let version
         if (/^lts\/.*/i.test(nodeVersion)) {
             if (nodeVersion === "lts/*") {
