@@ -42,7 +42,7 @@ jobs:
     needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/action-test
         with:
           use-versions: false
@@ -55,7 +55,7 @@ jobs:
     needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/action-test
         with:
           use-versions: true
@@ -67,7 +67,7 @@ jobs:
     needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           # Create .tool-versions for asdf
           {
@@ -102,7 +102,7 @@ jobs:
     # needs: [lint]  # TODO: Reinstate this after done with fast testing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Debug system python
         # if: "false" # Comment this out for add'l debug
         run: |
@@ -129,7 +129,7 @@ jobs:
       DESIRED_PYTHON_VERSION: 3.9.13
       UPGRADE_PYTHON_VERSION: 3.10.6
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install pyenv on hosted runner
         run: |
           # Installing pyenv
