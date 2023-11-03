@@ -4,8 +4,6 @@
     "dockerfile": "Dockerfile",
     "args": { "VARIANT": "16-bullseye" }
   },
-  "settings": {},
-  "extensions": ["dbaeumer.vscode-eslint", "GitHub.codespaces"],
   "remoteUser": "node",
   "features": {
     "git": "os-provided",
