@@ -17,7 +17,7 @@ export default class Python extends Tool {
     }
 
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] = this.getVersion(
+        const [checkVersion, ] = this.getVersion(
             desiredVersion,
             ".python-version",
         )
@@ -58,42 +58,34 @@ export default class Python extends Tool {
             this.logAndExit(`failed to check out setup-python`),
         )
 
-        this.logAndExit("testing")
+        // Run the setup-python action
+        const actionPath = path.join(repositoryPath, "dist", "setup", "index.js")
+        const actionCommand = `node ${actionPath}`
+        core.debug(`actionCommand = '${actionCommand}'`)
 
-        // Sanity check the python command works, and output its version
-        await this.validateVersion(checkVersion)
-
-        // Sanity check the pip command works, and output its version
-        await this.version("pip --version")
-
-        // If we got this far, we have successfully configured python.
-        core.setOutput(Python.tool, checkVersion)
-        this.info("python success!")
-        return checkVersion
-    }
-
-    async oldSetup(desiredVersion) {
-        // Check if pyenv exists and can be run, and capture the version info while
-        // we're at it
-        await this.findInstaller()
-
-        // Ensure we have the latest pyenv and python versions available
-        await this.updatePyenv()
-
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            core.exportVariable("PYENV_VERSION", checkVersion)
+        // Actually run it
+        core.debug(`checkVersion = '${checkVersion}'`)
+        const opts = {
+            env: {
+                ...process.env,
+                ...(await this.getEnv()),
+                'INPUT_ALLOW-PRERELEASES': "FALSE",
+                'INPUT_ARCHITECTURE': "",
+                'INPUT_CACHE': "pip",
+                'INPUT_CACHE-DEPENDENCY-PATH': "",
+                'INPUT_CHECK-LATEST': "FALSE",
+                'INPUT_PYTHON-VERSION': checkVersion,
+                'INPUT_PYTHON-VERSION-FILE': "",
+                'INPUT_TOKEN': "",
+                'INPUT_UPDATE-ENVIRONMENT': "TRUE",
+                RUNNER_TOOL_CACHE: process.env.RUNNER_TOOL_CACHE || path.dirname(this.tempRoot),
+                RUNNER_DEBUG: "1",
+            }
         }
-
-        // using -s option to skip the install and become a no-op if the
-        // version requested to be installed is already installed according to pyenv.
-        let installCommand = `pyenv install -s`
-        // pyenv install does not pick up the environment variable PYENV_VERSION
-        // unlike tfenv, so we specify it here as an argument explicitly, if it's set
-        if (isVersionOverridden) installCommand += ` ${checkVersion}`
-
-        await this.subprocessShell(installCommand).catch(
-            this.logAndExit(`failed to install python version ${checkVersion}`),
+        // This is super loud
+        // core.debug(`opts = '${JSON.stringify(opts)}'`)
+        await this.subprocessShell(actionCommand, opts).catch(
+            this.logAndExit(`failed to run setup-python`),
         )
 
         // Sanity check the python command works, and output its version

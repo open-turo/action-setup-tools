@@ -37572,7 +37572,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
     }
 
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] = this.getVersion(
+        const [checkVersion, ] = this.getVersion(
             desiredVersion,
             ".python-version",
         )
@@ -37584,27 +37584,63 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
             return checkVersion
         }
 
-        // Check if pyenv exists and can be run, and capture the version info while
-        // we're at it
-        await this.findInstaller()
+        // Checkout the setup-python repository
+        // TODO: Make this cached (?)
 
-        // Ensure we have the latest pyenv and python versions available
-        await this.updatePyenv()
-
-        // Set downstream environment variable for future steps in this Job
-        if (isVersionOverridden) {
-            _actions_core__WEBPACK_IMPORTED_MODULE_3__.exportVariable("PYENV_VERSION", checkVersion)
+        // Get the GitHub workspace path
+        let githubWorkspacePath = process.env['GITHUB_WORKSPACE']
+        if (!githubWorkspacePath) {
+            throw new Error('GITHUB_WORKSPACE not defined')
         }
+        githubWorkspacePath = path__WEBPACK_IMPORTED_MODULE_1__.resolve(githubWorkspacePath)
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`GITHUB_WORKSPACE = '${githubWorkspacePath}'`)
 
-        // using -s option to skip the install and become a no-op if the
-        // version requested to be installed is already installed according to pyenv.
-        let installCommand = `pyenv install -s`
-        // pyenv install does not pick up the environment variable PYENV_VERSION
-        // unlike tfenv, so we specify it here as an argument explicitly, if it's set
-        if (isVersionOverridden) installCommand += ` ${checkVersion}`
+        // We check out into the workspace
+        const repositoryPath = path__WEBPACK_IMPORTED_MODULE_1__.join(githubWorkspacePath, 'setup-python')
 
-        await this.subprocessShell(installCommand).catch(
-            this.logAndExit(`failed to install python version ${checkVersion}`),
+        // Branch reference for the action version
+        const actionVersion = "v4"
+        const checkoutCommand = [
+            "git clone",
+            `--depth 1 --branch ${actionVersion}`,
+            "https://github.com/actions/setup-python.git",
+            repositoryPath
+        ].join(" ")
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`checkoutCommand = '${checkoutCommand}'`)
+
+        // Actually check it out
+        await this.subprocessShell(checkoutCommand).catch(
+            this.logAndExit(`failed to check out setup-python`),
+        )
+
+        // Run the setup-python action
+        const actionPath = path__WEBPACK_IMPORTED_MODULE_1__.join(repositoryPath, "dist", "setup", "index.js")
+        const actionCommand = `node ${actionPath}`
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`actionCommand = '${actionCommand}'`)
+
+        // Actually run it
+        _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`checkVersion = '${checkVersion}'`)
+        const opts = {
+            env: {
+                ...process.env,
+                ...(await this.getEnv()),
+                'INPUT_ALLOW-PRERELEASES': "FALSE",
+                'INPUT_ARCHITECTURE': "",
+                'INPUT_CACHE': "pip",
+                'INPUT_CACHE-DEPENDENCY-PATH': "",
+                'INPUT_CHECK-LATEST': "FALSE",
+                'INPUT_PYTHON-VERSION': checkVersion,
+                'INPUT_PYTHON-VERSION-FILE': "",
+                'INPUT_TOKEN': "",
+                'INPUT_UPDATE-ENVIRONMENT': "TRUE",
+                RUNNER_TOOL_CACHE: process.env.RUNNER_TOOL_CACHE || path__WEBPACK_IMPORTED_MODULE_1__.dirname(this.tempRoot),
+                RUNNER_DEBUG: "1",
+            }
+        }
+        // This is super loud
+        // core.debug(`opts = '${JSON.stringify(opts)}'`)
+        await this.subprocessShell(actionCommand, opts).catch(
+            this.logAndExit(`failed to run setup-python`),
         )
 
         // Sanity check the python command works, and output its version
