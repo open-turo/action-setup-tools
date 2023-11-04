@@ -29,6 +29,50 @@ export default class Python extends Tool {
             return checkVersion
         }
 
+        // Checkout the setup-python repository
+        // TODO: Make this cached (?)
+
+        // Get the GitHub workspace path
+        let githubWorkspacePath = process.env['GITHUB_WORKSPACE']
+        if (!githubWorkspacePath) {
+            throw new Error('GITHUB_WORKSPACE not defined')
+        }
+        githubWorkspacePath = path.resolve(githubWorkspacePath)
+        core.debug(`GITHUB_WORKSPACE = '${githubWorkspacePath}'`)
+
+        // We check out into the workspace
+        const repositoryPath = path.join(githubWorkspacePath, 'setup-python')
+
+        // Branch reference for the action version
+        const actionVersion = "v4"
+        const checkoutCommand = [
+            "git clone",
+            `--depth 1 --branch ${actionVersion}`,
+            "https://github.com/actions/setup-python.git",
+            repositoryPath
+        ].join(" ")
+        core.debug(`checkoutCommand = '${checkoutCommand}'`)
+
+        // Actually check it out
+        await this.subprocessShell(checkoutCommand).catch(
+            this.logAndExit(`failed to check out setup-python`),
+        )
+
+        this.logAndExit("testing")
+
+        // Sanity check the python command works, and output its version
+        await this.validateVersion(checkVersion)
+
+        // Sanity check the pip command works, and output its version
+        await this.version("pip --version")
+
+        // If we got this far, we have successfully configured python.
+        core.setOutput(Python.tool, checkVersion)
+        this.info("python success!")
+        return checkVersion
+    }
+
+    async oldSetup(desiredVersion) {
         // Check if pyenv exists and can be run, and capture the version info while
         // we're at it
         await this.findInstaller()
