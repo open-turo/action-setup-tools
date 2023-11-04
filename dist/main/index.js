@@ -37572,7 +37572,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
     }
 
     async setup(desiredVersion) {
-        const [checkVersion, ] = this.getVersion(
+        const [checkVersion] = this.getVersion(
             desiredVersion,
             ".python-version",
         )
@@ -37588,15 +37588,15 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         // TODO: Make this cached (?)
 
         // Get the GitHub workspace path
-        let githubWorkspacePath = process.env['GITHUB_WORKSPACE']
+        let githubWorkspacePath = process.env["GITHUB_WORKSPACE"]
         if (!githubWorkspacePath) {
-            throw new Error('GITHUB_WORKSPACE not defined')
+            throw new Error("GITHUB_WORKSPACE not defined")
         }
         githubWorkspacePath = path__WEBPACK_IMPORTED_MODULE_1__.resolve(githubWorkspacePath)
         _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`GITHUB_WORKSPACE = '${githubWorkspacePath}'`)
 
         // We check out into the workspace
-        const repositoryPath = path__WEBPACK_IMPORTED_MODULE_1__.join(githubWorkspacePath, 'setup-python')
+        const repositoryPath = path__WEBPACK_IMPORTED_MODULE_1__.join(githubWorkspacePath, "setup-python")
 
         // Branch reference for the action version
         const actionVersion = "v4"
@@ -37604,7 +37604,7 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
             "git clone",
             `--depth 1 --branch ${actionVersion}`,
             "https://github.com/actions/setup-python.git",
-            repositoryPath
+            repositoryPath,
         ].join(" ")
         _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`checkoutCommand = '${checkoutCommand}'`)
 
@@ -37614,7 +37614,12 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
         )
 
         // Run the setup-python action
-        const actionPath = path__WEBPACK_IMPORTED_MODULE_1__.join(repositoryPath, "dist", "setup", "index.js")
+        const actionPath = path__WEBPACK_IMPORTED_MODULE_1__.join(
+            repositoryPath,
+            "dist",
+            "setup",
+            "index.js",
+        )
         const actionCommand = `node ${actionPath}`
         _actions_core__WEBPACK_IMPORTED_MODULE_3__.debug(`actionCommand = '${actionCommand}'`)
 
@@ -37624,18 +37629,20 @@ class Python extends _tool_js__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z {
             env: {
                 ...process.env,
                 ...(await this.getEnv()),
-                'INPUT_ALLOW-PRERELEASES': "FALSE",
-                'INPUT_ARCHITECTURE': "",
-                'INPUT_CACHE': "pip",
-                'INPUT_CACHE-DEPENDENCY-PATH': "",
-                'INPUT_CHECK-LATEST': "FALSE",
-                'INPUT_PYTHON-VERSION': checkVersion,
-                'INPUT_PYTHON-VERSION-FILE': "",
-                'INPUT_TOKEN': "",
-                'INPUT_UPDATE-ENVIRONMENT': "TRUE",
-                RUNNER_TOOL_CACHE: process.env.RUNNER_TOOL_CACHE || path__WEBPACK_IMPORTED_MODULE_1__.dirname(this.tempRoot),
+                "INPUT_ALLOW-PRERELEASES": "FALSE",
+                INPUT_ARCHITECTURE: "",
+                INPUT_CACHE: "pip",
+                "INPUT_CACHE-DEPENDENCY-PATH": "",
+                "INPUT_CHECK-LATEST": "FALSE",
+                "INPUT_PYTHON-VERSION": checkVersion,
+                "INPUT_PYTHON-VERSION-FILE": "",
+                INPUT_TOKEN: "",
+                "INPUT_UPDATE-ENVIRONMENT": "TRUE",
+                RUNNER_TOOL_CACHE:
+                    process.env.RUNNER_TOOL_CACHE ||
+                    path__WEBPACK_IMPORTED_MODULE_1__.dirname(this.tempRoot),
                 RUNNER_DEBUG: "1",
-            }
+            },
         }
         // This is super loud
         // core.debug(`opts = '${JSON.stringify(opts)}'`)
