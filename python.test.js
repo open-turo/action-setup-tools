@@ -13,7 +13,7 @@ import {
 
 Mute.all()
 
-function getEnv(env){
+function getEnv(env) {
     return {
         ...env,
         ...ignoreInstalled(),
