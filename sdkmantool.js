@@ -50,7 +50,7 @@ export default class SdkmanTool extends Tool {
             this.debug("sdk shim does not exist")
 
             this.shimSdk(this.defaultRoot)
-        }.bind(this)())
+        }).bind(this)()
 
         return super.findRoot()
     }

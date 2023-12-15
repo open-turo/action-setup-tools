@@ -20,9 +20,8 @@ export default class Node extends Tool {
     }
 
     async setup(desiredVersion) {
-        const [checkVersion, isVersionOverridden] = await this.getNodeVersion(
-            desiredVersion,
-        )
+        const [checkVersion, isVersionOverridden] =
+            await this.getNodeVersion(desiredVersion)
         if (!(await this.haveVersion(checkVersion))) {
             if (checkVersion) {
                 // Ensure yarn is present as well, but don't error if it breaks
