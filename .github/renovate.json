@@ -1,0 +1,6 @@
+{
+  "extends": [
+    "github>open-turo/renovate-config#v1",
+    "github>open-turo/renovate-config:npm-app#v1"
+  ]
+}
