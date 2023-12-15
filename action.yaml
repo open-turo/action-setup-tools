@@ -20,5 +20,5 @@ outputs:
     description:
       The version of Terraform that has been installed and is ready for use.
 runs:
-  using: "node16"
+  using: "node20"
   main: "dist/main/index.js"
