@@ -159,6 +159,8 @@ describe("setup", () => {
     })
 
     it("is harmless if there's no versions", async () => {
+        const exists = jest.fn().mockImplementation(() => false)
+        jest.spyOn(fs, "existsSync").mockImplementation(exists)
         return new Node().setup()
     })
 })
