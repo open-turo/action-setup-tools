@@ -1,10 +1,12 @@
 # `open-turo/action-setup-tools`
 
+<!-- prettier-ignore-start -->
+<!-- action-docs-description -->
 ## Description
 
-GitHub Action that installs and provisions supported tools for workflow steps in
-self-hosted runners. This relies on the agent having supported tooling
-installed.
+GitHub Action that installs and provisions supported tools for workflow steps in self-hosted runners. This relies on the agent having supported tooling installed.
+<!-- action-docs-description -->
+<!-- prettier-ignore-end -->
 
 [![Release](https://img.shields.io/github/v/release/open-turo/action-setup-tools)](https://github.com/open-turo/action-setup-tools/releases/)
 [![Tests pass/fail](https://img.shields.io/github/workflow/status/open-turo/action-setup-tools/CI)](https://github.com/open-turo/action-setup-tools/actions/)
@@ -49,22 +51,36 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v3
             - name: Setup tools
               uses: open-turo/action-setup-tools@v1
             - name: Output current environment
               run: env | sort
 ```
 
+<!-- prettier-ignore-start -->
+<!-- action-docs-inputs -->
+
+<!-- action-docs-inputs -->
+
+<!-- action-docs-outputs -->
 ## Outputs
 
-| parameter | description                                                            |
-| --------- | ---------------------------------------------------------------------- |
-| go        | The version of golang that has been installed and is ready for use.    |
-| node      | The verison of Node.js that has been installed and is ready for use.   |
-| java      | The version of Java that has been installed and is ready for use.      |
-| python    | The version of Python that has been installed and is ready for use.    |
+| parameter | description |
+| --- | --- |
+| go | The version of golang that has been installed and is ready for use. |
+| node | The verison of Node.js that has been installed and is ready for use. |
+| java | The version of Java that has been installed and is ready for use. |
+| python | The version of Python that has been installed and is ready for use. |
 | terraform | The version of Terraform that has been installed and is ready for use. |
+<!-- action-docs-outputs -->
+
+<!-- action-docs-runs -->
+## Runs
+
+This action is a `node20` action.
+<!-- action-docs-runs -->
+<!-- prettier-ignore-end -->
 
 ## Supported Tools
 
@@ -160,30 +176,6 @@ jobs:
             - name: Output current environment
               run: env | sort
 ```
-
-### Inputs
-
-| parameter | description                                  | required | default |
-| --------- | -------------------------------------------- | -------- | ------- |
-| go        | The desired version of golang to install.    | `false`  |         |
-| node      | The desired version of Node.js to install.   | `false`  |         |
-| java      | The desired version of Java to install.      | `false`  |         |
-| python    | The desired version of Python to install.    | `false`  |         |
-| terraform | The desired version of Terraform to install. | `false`  |         |
-
-### Outputs
-
-| parameter | description                                                            |
-| --------- | ---------------------------------------------------------------------- |
-| go        | The version of golang that has been installed and is ready for use.    |
-| node      | The version of Node.js that has been installed and is ready for use.   |
-| java      | The version of Java that has been installed and is ready for use.      |
-| python    | The version of Python that has been installed and is ready for use.    |
-| terraform | The version of Terraform that has been installed and is ready for use. |
-
-## Runs
-
-This Action is an `node16` action.
 
 ## Get Help
 
