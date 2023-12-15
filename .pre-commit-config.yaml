@@ -26,3 +26,10 @@ repos:
     rev: v1.6.26
     hooks:
       - id: actionlint
+  - repo: local
+    hooks:
+      - id: update-action-readme
+        name: update-action-readme
+        entry: ./script/update-action-readme
+        language: script
+        files: '.*action\.yaml$'
