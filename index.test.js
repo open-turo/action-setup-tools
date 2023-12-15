@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals"
 
 import { runAction, Mute, runJS, ignoreInstalled } from "./testutil"
+import fs from "fs"
 
 Mute.all()
 
@@ -17,10 +18,19 @@ describe("skipping slow tests", () => {
 })
 
 describe("run", () => {
+    afterEach(() => {
+        jest.resetAllMocks()
+        jest.clearAllMocks()
+        jest.restoreAllMocks()
+    })
+
     it("skips all tools if INPUT env empty", async () => {
         // this runJS is just a sanity check for invoking the subprocess
         // directly without using Tool.subprocess
         return runJS("index", {}).then((proc) => {
+            // We have a .node-version file in the repo, so lets ignore it for the tests
+            const exists = jest.fn().mockImplementation(() => false)
+            jest.spyOn(fs, "existsSync").mockImplementation(exists)
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
