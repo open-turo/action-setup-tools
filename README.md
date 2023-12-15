@@ -49,7 +49,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Setup tools
               uses: open-turo/action-setup-tools@v1
             - name: Output current environment
@@ -148,7 +148,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Configure fixed test versions
               uses: open-turo/action-setup-tools/versions@v1
               with:
