@@ -154,7 +154,7 @@ jobs:
       - name: Create version files
         run: echo "${DESIRED_PYTHON_VERSION}" > .python-version
       - name: Setup python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
       - name: Debug environment
         if: "false" # Comment this out for add'l debug
         run: |
