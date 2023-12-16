@@ -57,9 +57,6 @@
       "/node_modules/",
       "testutil.js"
     ],
-    "setupFilesAfterEnv": [
-      "./jest.setup.js"
-    ],
     "testTimeout": 60000
   },
   "engines": {
