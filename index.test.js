@@ -1,7 +1,6 @@
 import { jest } from "@jest/globals"
 
-import { runAction, Mute, runJS, ignoreInstalled, testCwd } from "./testutil"
-import fs from "fs"
+import { runAction, Mute, runJS, ignoreInstalled } from "./testutil"
 
 Mute.all()
 
@@ -9,15 +8,6 @@ const NO_TEST_JAVA = !!process.env.NO_TEST_JAVA
 
 beforeAll(() => {
     process.env.RUN_ASYNC = "false"
-    fs.mkdirSync(testCwd)
-})
-
-afterAll(() => {
-    try {
-        fs.rmdirSync(testCwd)
-    } catch (ignored) {
-        // If the folder doesn't exist it's ok
-    }
 })
 
 describe("skipping slow tests", () => {
