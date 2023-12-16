@@ -16,6 +16,8 @@ export class TestTool extends Tool {
     static installer = "testenv"
 }
 
+export const testCwd = "tests-cwd"
+
 // runAction returns a promise that wraps the subprocess action execution and
 // allows for capturing error output if DEBUG is enabled
 export async function runAction(name, env) {
@@ -24,7 +26,11 @@ export async function runAction(name, env) {
     let tool = new TestTool()
     env = env ? { ...process.env, ...env } : env
     return tool
-        .subprocess(`node ${index}`, { env: env, silent: true })
+        .subprocess(`node ../${index}`, {
+            env: env,
+            cwd: path.resolve(testCwd),
+            silent: true,
+        })
         .catch((err) => {
             throw new Error(
                 `subprocess failed code ${err.exitCode}\n${err.stdout}\n${err.stderr}`,
@@ -44,9 +50,10 @@ export async function runJS(name, env) {
     env = env ? { ...process.env, ...env } : env
     const opts = {
         env: env,
+        cwd: path.resolve(testCwd),
         timeout: 5000,
     }
-    return execAsync(`node ${index}`, opts)
+    return execAsync(`node ../${index}`, opts)
 }
 
 // runActionExpectError returns a promise that wraps the subprocess action
