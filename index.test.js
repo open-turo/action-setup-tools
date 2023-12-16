@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals"
 
-import { runAction, Mute, runJS, ignoreInstalled } from "./testutil"
+import { runAction, Mute, runJS, ignoreInstalled, testCwd } from "./testutil"
 import fs from "fs"
 
 Mute.all()
@@ -9,6 +9,15 @@ const NO_TEST_JAVA = !!process.env.NO_TEST_JAVA
 
 beforeAll(() => {
     process.env.RUN_ASYNC = "false"
+    fs.mkdirSync(testCwd)
+})
+
+afterAll(() => {
+    try {
+        fs.rmdirSync(testCwd)
+    } catch (ignored) {
+        // If the folder doesn't exist it's ok
+    }
 })
 
 describe("skipping slow tests", () => {
@@ -28,9 +37,6 @@ describe("run", () => {
         // this runJS is just a sanity check for invoking the subprocess
         // directly without using Tool.subprocess
         return runJS("index", {}).then((proc) => {
-            // We have a .node-version file in the repo, so lets ignore it for the tests
-            const exists = jest.fn().mockImplementation(() => false)
-            jest.spyOn(fs, "existsSync").mockImplementation(exists)
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)

@@ -56,7 +56,8 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "testutil.js"
-    ]
+    ],
+    "testTimeout": 60000
   },
   "engines": {
     "node": ">= 20"
