@@ -78,7 +78,7 @@ jobs:
           echo "python 3.10.2"
           echo "terraform 1.1.5"
           } > .tool-versions
-      - uses: asdf-vm/actions/install@v2
+      - uses: asdf-vm/actions/install@v3
       - run: |
           # Test versions
           go version | grep "1.17.6"
