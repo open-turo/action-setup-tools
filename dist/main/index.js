@@ -40584,8 +40584,8 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/find-versions/index.js + 1 modules
-var find_versions = __nccwpck_require__(2564);
+// EXTERNAL MODULE: ./node_modules/find-versions/index.js + 6 modules
+var find_versions = __nccwpck_require__(712);
 // EXTERNAL MODULE: ./tool.js
 var tool = __nccwpck_require__(4067);
 ;// CONCATENATED MODULE: ./node-version-data.js
@@ -61574,7 +61574,7 @@ const Blob = _Blob
 
 /***/ }),
 
-/***/ 2564:
+/***/ 712:
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
 
@@ -61588,7 +61588,146 @@ function semverRegex() {
 	return /(?<=^v?|\sv?)(?:(?:0|[1-9]\d{0,9}?)\.){2}(?:0|[1-9]\d{0,9})(?:-(?:--+)?(?:0|[1-9]\d*|\d*[a-z]+\d*)){0,100}(?=$| |\+|\.)(?:(?<=-\S+)(?:\.(?:--?|[\da-z-]*[a-z-]\d*|0|[1-9]\d*)){1,100}?)?(?!\.)(?:\+(?:[\da-z]\.?-?){1,100}?(?!\w))?(?!\+)/gi;
 }
 
+;// CONCATENATED MODULE: external "node:vm"
+const external_node_vm_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:vm");
+;// CONCATENATED MODULE: ./node_modules/function-timeout/index.js
+
+
+const script = new external_node_vm_namespaceObject.Script('returnValue = functionToRun()');
+
+// TODO: Document the `context` option and add to types when I know it's something I want to keep.
+
+// If you use the `context` option, you do it at your own risk.
+function function_timeout_functionTimeout(function_, {timeout, context = external_node_vm_namespaceObject.createContext()} = {}) {
+	const wrappedFunction = (...arguments_) => {
+		context.functionToRun = () => function_(...arguments_);
+		script.runInNewContext(context, {timeout});
+		return context.returnValue;
+	};
+
+	Object.defineProperty(wrappedFunction, 'name', {
+		value: `functionTimeout(${function_.name || '<anonymous>'})`,
+		configurable: true,
+	});
+
+	return wrappedFunction;
+}
+
+function function_timeout_isTimeoutError(error) {
+	return error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
+}
+
+;// CONCATENATED MODULE: ./node_modules/convert-hrtime/index.js
+function convertHrtime(hrtime) {
+	const nanoseconds = hrtime;
+	const number = Number(nanoseconds);
+	const milliseconds = number / 1000000;
+	const seconds = number / 1000000000;
+
+	return {
+		seconds,
+		milliseconds,
+		nanoseconds
+	};
+}
+
+;// CONCATENATED MODULE: ./node_modules/time-span/index.js
+
+
+function timeSpan() {
+	const start = process.hrtime.bigint();
+	const end = type => convertHrtime(process.hrtime.bigint() - start)[type];
+
+	const returnValue = () => end('milliseconds');
+	returnValue.rounded = () => Math.round(end('milliseconds'));
+	returnValue.seconds = () => end('seconds');
+	returnValue.nanoseconds = () => end('nanoseconds');
+
+	return returnValue;
+}
+
+;// CONCATENATED MODULE: ./node_modules/super-regex/index.js
+
+
+
+const resultToMatch = result => ({
+	match: result[0],
+	index: result.index,
+	groups: result.slice(1),
+	namedGroups: result.groups ?? {},
+	input: result.input,
+});
+
+const context = {};
+
+function isMatch(regex, string, {timeout} = {}) {
+	try {
+		return functionTimeout(() => structuredClone(regex).test(string), {timeout, context})();
+	} catch (error) {
+		if (isTimeoutError(error)) {
+			return false;
+		}
+
+		throw error;
+	}
+}
+
+function firstMatch(regex, string, {timeout} = {}) {
+	try {
+		const result = functionTimeout(() => structuredClone(regex).exec(string), {timeout, context})();
+
+		if (result === null) {
+			return;
+		}
+
+		return resultToMatch(result);
+	} catch (error) {
+		if (isTimeoutError(error)) {
+			return;
+		}
+
+		throw error;
+	}
+}
+
+function matches(regex, string, {timeout = Number.POSITIVE_INFINITY, matchTimeout = Number.POSITIVE_INFINITY} = {}) {
+	if (!regex.global) {
+		throw new Error('The regex must have the global flag, otherwise, use `firstMatch()` instead');
+	}
+
+	return {
+		* [Symbol.iterator]() {
+			try {
+				const matches = string.matchAll(regex); // The regex is only executed when iterated over.
+
+				while (true) {
+					// `matches.next` must be called within an arrow function so that it doesn't loose its context.
+					const nextMatch = function_timeout_functionTimeout(() => matches.next(), {
+						context,
+						timeout: (timeout !== Number.POSITIVE_INFINITY || matchTimeout !== Number.POSITIVE_INFINITY) ? Math.min(timeout, matchTimeout) : undefined,
+					});
+
+					const end = timeSpan();
+					const {value, done} = nextMatch();
+					timeout -= Math.ceil(end());
+
+					if (done) {
+						break;
+					}
+
+					yield resultToMatch(value);
+				}
+			} catch (error) {
+				if (!function_timeout_isTimeoutError(error)) {
+					throw error;
+				}
+			}
+		},
+	};
+}
+
 ;// CONCATENATED MODULE: ./node_modules/find-versions/index.js
+
 
 
 function findVersions(stringWithVersions, {loose = false} = {}) {
@@ -61597,9 +61736,9 @@ function findVersions(stringWithVersions, {loose = false} = {}) {
 	}
 
 	const regex = loose ? new RegExp(`(?:${semverRegex().source})|(?:v?(?:\\d+\\.\\d+)(?:\\.\\d+)?)`, 'g') : semverRegex();
-	const matches = stringWithVersions.match(regex) || [];
+	const versions = [...matches(regex, stringWithVersions)].map(({match}) => match.trim().replace(/^v/, '').replace(/^\d+\.\d+$/, '$&.0')); // TODO: Remove the `...` when https://github.com/tc39/proposal-iterator-helpers is available.
 
-	return [...new Set(matches.map(match => match.trim().replace(/^v/, '').replace(/^\d+\.\d+$/, '$&.0')))];
+	return [...new Set(versions)];
 }
 
 
@@ -61918,7 +62057,7 @@ Terraform.register()
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(2186);
 /* harmony import */ var _actions_tool_cache__WEBPACK_IMPORTED_MODULE_8__ = __nccwpck_require__(7784);
 /* harmony import */ var _actions_exec__WEBPACK_IMPORTED_MODULE_9__ = __nccwpck_require__(1514);
-/* harmony import */ var find_versions__WEBPACK_IMPORTED_MODULE_11__ = __nccwpck_require__(2564);
+/* harmony import */ var find_versions__WEBPACK_IMPORTED_MODULE_11__ = __nccwpck_require__(712);
 /* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_10__ = __nccwpck_require__(1383);
 
 
