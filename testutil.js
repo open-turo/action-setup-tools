@@ -220,6 +220,7 @@ export class Cleaner {
         if (fs.existsSync(dir)) {
             try {
                 fs.rmSync(dir, { recursive: true })
+                // eslint-disable-next-line no-unused-vars
             } catch (e) {
                 // no errors for me
             }
