@@ -95,52 +95,6 @@ export function cleanPath(name) {
 }
 
 /**
- * Create a Node.js version information. Every property but the version
- * and the LTS info is statically set.
- * @param {object} options
- * @param {string} [options.lts] LTS version name
- * @param {string} options.version Node.js version
- * @returns {object} Node.js version information
- */
-export function createNodeVersion({ lts, version }) {
-    return {
-        date: "2022-06-16",
-        files: [
-            "aix-ppc64",
-            "headers",
-            "linux-arm64",
-            "linux-armv7l",
-            "linux-ppc64le",
-            "linux-s390x",
-            "linux-x64",
-            "osx-arm64-tar",
-            "osx-x64-pkg",
-            "osx-x64-tar",
-            "src",
-            "win-x64-7z",
-            "win-x64-exe",
-            "win-x64-msi",
-            "win-x64-zip",
-            "win-x86-7z",
-            "win-x86-exe",
-            "win-x86-msi",
-            "win-x86-zip",
-        ],
-        modules: "108",
-        name: "Node.js",
-        npm: "8.12.1",
-        openssl: "3.0.3+quic",
-        security: false,
-        url: `https://nodejs.org/download/release/${version}/`,
-        uv: "1.43.0",
-        v8: "10.2.154.4",
-        zlib: "1.2.11",
-        lts: lts || false,
-        version,
-    }
-}
-
-/**
  * Helper to clean up automatically installed tools during test suites so we
  * don't have collisions and false positives.
  */

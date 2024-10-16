@@ -3,7 +3,6 @@ import core from "@actions/core"
 // Import all our tools to register them
 import "./golang.js"
 import "./java.js"
-import "./node.js"
 import "./python.js"
 import "./terraform.js"
 

@@ -9,7 +9,7 @@ outputs:
       The version of golang that has been installed and is ready for use.
   node:
     description:
-      The verison of Node.js that has been installed and is ready for use.
+      The version of Node.js that has been installed and is ready for use.
   java:
     description:
       The version of Java that has been installed and is ready for use.
@@ -20,5 +20,42 @@ outputs:
     description:
       The version of Terraform that has been installed and is ready for use.
 runs:
-  using: "node20"
-  main: "dist/main/index.js"
+  using: "composite"
+  steps:
+    - name: Read node version
+      id: get-node-version
+      run: |
+        # Check if an .nvmrc file exists and export the node version if it does
+        if [ -f .nvmrc ]; then
+          NODE_VERSION=$(cat .nvmrc)
+          echo "Node version from .nvmrc: $NODE_VERSION"
+          echo "node_version=$NODE_VERSION" >> $GITHUB_OUTPUT
+        fi
+
+        # Check if a .node-version file exists and export the node version if it does
+        if [ -f .node-version ]; then
+          NODE_VERSION=$(cat .node-version)
+          echo "Node version from .node-version: $NODE_VERSION"
+          echo "node_version=$NODE_VERSION" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+    - uses: actions/setup-node@v4
+      id: setup-node
+      if: steps.get-node-version.outputs.node_version
+      with:
+        node-version: ${{ steps.get-node-version.outputs.node_version }}
+    - name: Install yarn
+      if: steps.setup-node.outputs.node-version
+      run: |
+        npm install -g yarn
+      shell: bash
+    - name: Export installed node version
+      if: steps.get-node-version.outputs.node_version
+      run: |
+        echo "Installed Node version: ${{ steps.setup-node.outputs.node-version }}"
+        echo "node=${{ steps.setup-node.outputs.node-version }}" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Install Tools
+      id: install-tools
+      run: "node ${{ github.action_path }}/dist/main/index.js"
+      shell: bash
