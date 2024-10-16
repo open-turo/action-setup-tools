@@ -30,7 +30,6 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
-            expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
         })
@@ -41,7 +40,6 @@ describe("run", () => {
             expect(proc.stderr.toString()).toBe("")
             expect(proc.stdout).toMatch(/go.*skipping/)
             expect(proc.stdout).toMatch(/java.*skipping/)
-            expect(proc.stdout).toMatch(/node.*skipping/)
             expect(proc.stdout).toMatch(/python.*skipping/)
             expect(proc.stdout).toMatch(/terraform.*skipping/)
         })
@@ -54,12 +52,10 @@ describe("run", () => {
             ? ""
             : `${desiredJavaVersion}-tem`
         const tfVersion = "1.1.2"
-        const nodeVersion = "16.13.2"
         const pyVersion = process.env.TEST_SLOW ? "3.10.2" : ""
         return runAction("index", {
             INPUT_GO: goVersion,
             INPUT_JAVA: sdkmanJavaVersionIdentifier,
-            INPUT_NODE: nodeVersion,
             INPUT_TERRAFORM: tfVersion,
             INPUT_PYTHON: pyVersion,
             ...ignoreInstalled(),
@@ -75,8 +71,6 @@ describe("run", () => {
             expect(proc.stdout).toContain(
                 NO_TEST_JAVA ? "skipping" : "java success!",
             )
-            expect(proc.stdout).toContain(`node --version: ${nodeVersion}`)
-            expect(proc.stdout).toContain("node success!")
             expect(proc.stdout).toContain(`terraform --version: ${tfVersion}`)
             expect(proc.stdout).toContain("terraform success!")
             if (process.env.SLOW_TEST) {
