@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'node.js'
-      - '.github/workflows/test-node-versions.yaml'
+      - "node.js"
+      - ".github/workflows/test-node-versions.yaml"
 
 jobs:
   test-versions:
@@ -13,24 +13,24 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "20"        # Test major version
-          - "20.18.1"   # Test specific version
-          - "18"        # Test another major version
-          - "16"        # Test older major version
+          - "20" # Test major version
+          - "20.18.1" # Test specific version
+          - "18" # Test another major version
+          - "16" # Test older major version
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: ./
         with:
           node: ${{ matrix.node-version }}
-          
+
       - name: Verify Node Version
         run: |
           # Get installed version
           INSTALLED_VERSION=$(node --version | sed 's/^v//')
           echo "Installed Node.js version: $INSTALLED_VERSION"
-          
+
           # For major version tests
           if [[ "${{ matrix.node-version }}" =~ ^[0-9]+$ ]]; then
             if ! [[ "$INSTALLED_VERSION" =~ ^${{ matrix.node-version }}\..*$ ]]; then
@@ -44,11 +44,11 @@ jobs:
               exit 1
             fi
           fi
-          
+
           # Verify node and npm work
           node --version
           npm --version
-          
+
           # Create and run a simple Node.js script
           echo "console.log('Node.js version ' + process.version + ' works!')" > test.js
           node test.js
@@ -57,15 +57,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       # Test .node-version file
       - name: Test .node-version file
         run: |
           echo "20.18.1" > .node-version
-          
+
       - name: Setup with .node-version
         uses: ./
-          
+
       - name: Verify .node-version
         run: |
           INSTALLED_VERSION=$(node --version | sed 's/^v//')
@@ -73,16 +73,16 @@ jobs:
             echo "::error::Expected version 20.18.1, got $INSTALLED_VERSION"
             exit 1
           fi
-          
+
       # Test .nvmrc file
       - name: Test .nvmrc file
         run: |
           rm .node-version
           echo "20" > .nvmrc
-          
+
       - name: Setup with .nvmrc
         uses: ./
-          
+
       - name: Verify .nvmrc
         run: |
           INSTALLED_VERSION=$(node --version | sed 's/^v//')
@@ -95,31 +95,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Test invalid major version
         id: invalid-major
         continue-on-error: true
         uses: ./
         with:
           node: "99"
-          
+
       - name: Verify invalid major version failed
         run: |
           if [[ "${{ steps.invalid-major.outcome }}" != "failure" ]]; then
             echo "::error::Expected invalid major version to fail"
             exit 1
           fi
-          
+
       - name: Test invalid specific version
         id: invalid-specific
         continue-on-error: true
         uses: ./
         with:
           node: "20.99.99"
-          
+
       - name: Verify invalid specific version failed
         run: |
           if [[ "${{ steps.invalid-specific.outcome }}" != "failure" ]]; then
             echo "::error::Expected invalid specific version to fail"
             exit 1
-          fi 
+          fi
