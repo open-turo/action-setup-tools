@@ -5,6 +5,9 @@ inputs:
     description: "Use versions"
     default: "true"
     required: true
+  node:
+    description: 'Node.js version to install (e.g., "20" or "20.18.1")'
+    required: false
 runs:
   using: composite
   steps:
