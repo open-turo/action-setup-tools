@@ -155,8 +155,32 @@ export default class Node extends Tool {
      * @returns {Promise<[string | null, boolean | null]>} Resolved node version
      */
     async getNodeVersion(desiredVersion) {
-        // If we're given a version, it's the one we want
-        if (desiredVersion) return [desiredVersion, true]
+        // Handle major version numbers like "20"
+        if (desiredVersion && /^\d+$/.test(desiredVersion)) {
+            // Get list of available versions
+            const versionData = await this.getVersionData();
+            const versions = versionData
+                .map(v => findVersions(v.version)[0])
+                .filter(Boolean)
+                .filter(v => v.startsWith(`${desiredVersion}.`))
+                .sort((a, b) => {
+                    const [aMaj, aMin, aPatch] = a.split('.').map(Number);
+                    const [bMaj, bMin, bPatch] = b.split('.').map(Number);
+                    if (aMaj !== bMaj) return bMaj - aMaj;
+                    if (aMin !== bMin) return bMin - aMin;
+                    return bPatch - aPatch;
+                });
+
+            if (versions.length === 0) {
+                throw new Error(`No stable version found matching Node.js ${desiredVersion}.x`);
+            }
+
+            // Return latest stable version and mark it as overridden
+            return [versions[0], true];
+        }
+
+        // If we're given a specific version, it's the one we want
+        if (desiredVersion) return [desiredVersion, true];
 
         // If .node-version is present, it's the one we want, and it's not
         // considered an override
