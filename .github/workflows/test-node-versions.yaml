@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version:
+        node:
           - "20" # Test major version
           - "20.18.1" # Test specific version
           - "18" # Test another major version
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: ./
         with:
-          node: ${{ matrix.node-version }}
+          node: ${{ matrix.node }}
 
       - name: Verify Node Version
         run: |
@@ -32,15 +32,15 @@ jobs:
           echo "Installed Node.js version: $INSTALLED_VERSION"
 
           # For major version tests
-          if [[ "${{ matrix.node-version }}" =~ ^[0-9]+$ ]]; then
-            if ! [[ "$INSTALLED_VERSION" =~ ^${{ matrix.node-version }}\..*$ ]]; then
-              echo "::error::Expected version starting with ${{ matrix.node-version }}, got $INSTALLED_VERSION"
+          if [[ "${{ matrix.node }}" =~ ^[0-9]+$ ]]; then
+            if ! [[ "$INSTALLED_VERSION" =~ ^${{ matrix.node }}\..*$ ]]; then
+              echo "::error::Expected version starting with ${{ matrix.node }}, got $INSTALLED_VERSION"
               exit 1
             fi
           else
             # For specific version tests
-            if [[ "$INSTALLED_VERSION" != "${{ matrix.node-version }}" ]]; then
-              echo "::error::Expected version ${{ matrix.node-version }}, got $INSTALLED_VERSION"
+            if [[ "$INSTALLED_VERSION" != "${{ matrix.node }}" ]]; then
+              echo "::error::Expected version ${{ matrix.node }}, got $INSTALLED_VERSION"
               exit 1
             fi
           fi
