@@ -92,7 +92,7 @@ const mockNodeVersionsApiCall = (shouldThrowError) => {
             { version: "v20.18.1" },
             { version: "v20.18.0" },
             { version: "v20.17.0" },
-            ...nodeVersions
+            ...nodeVersions,
         ])
     }
     return api
@@ -192,8 +192,9 @@ describe("getNodeVersion", () => {
 
     it("throws on invalid major version", async () => {
         const api = mockNodeVersionsApiCall()
-        await expect(new Node().getNodeVersion("99"))
-            .rejects.toThrow(/No stable version found matching Node.js 99.x/)
+        await expect(new Node().getNodeVersion("99")).rejects.toThrow(
+            /No stable version found matching Node.js 99.x/,
+        )
         expect(api.isDone()).toBeTruthy()
     })
 })

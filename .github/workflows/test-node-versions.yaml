@@ -13,28 +13,28 @@ jobs:
     strategy:
       matrix:
         node:
-          - "20"  # Test major version
-          - "20.18.1"  # Test specific version
-          - "18"  # Test another major version
-          - "16"  # Test older major version
+          - "20" # Test major version
+          - "20.18.1" # Test specific version
+          - "18" # Test another major version
+          - "16" # Test older major version
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build action
         run: |
           npm install
           npm run prepare
-      
+
       - name: Setup Node.js
         uses: ./
         with:
           node: ${{ matrix.node }}
-          
+
       - name: Verify Node Version
         run: |
           VERSION=$(node --version | sed 's/^v//')
           echo "Installed version: $VERSION"
-          
+
           # For major version tests
           if [[ "${{ matrix.node }}" =~ ^[0-9]+$ ]]; then
             if ! [[ "$VERSION" =~ ^${{ matrix.node }}\..*$ ]]; then
@@ -53,19 +53,19 @@ jobs:
     runs-on: [self-hosted, general-ubuntu]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build action
         run: |
           npm install
           npm run prepare
-      
+
       - name: Test .node-version with major version
         run: |
           echo "20" > .node-version
-          
+
       - name: Setup with .node-version
         uses: ./
-          
+
       - name: Verify .node-version
         run: |
           VERSION=$(node --version | sed 's/^v//')
