@@ -60766,17 +60766,23 @@ class Node extends tool/* default */.A {
         // Handle major version numbers (e.g., "20")
         if (/^\d+$/.test(nodeVersion)) {
             const versions = versionData
-                .filter(v => v.version.startsWith(`v${nodeVersion}.`))
+                .filter((v) => v.version.startsWith(`v${nodeVersion}.`))
                 .sort((a, b) => {
-                    const [aMaj, aMin, aPatch] = (0,find_versions/* default */.A)(a.version)[0].split('.').map(Number)
-                    const [bMaj, bMin, bPatch] = (0,find_versions/* default */.A)(b.version)[0].split('.').map(Number)
+                    const [aMaj, aMin, aPatch] = (0,find_versions/* default */.A)(a.version)[0]
+                        .split(".")
+                        .map(Number)
+                    const [bMaj, bMin, bPatch] = (0,find_versions/* default */.A)(b.version)[0]
+                        .split(".")
+                        .map(Number)
                     if (aMaj !== bMaj) return bMaj - aMaj
                     if (aMin !== bMin) return bMin - aMin
                     return bPatch - aPatch
                 })
 
             if (versions.length === 0) {
-                throw new Error(`No stable version found matching Node.js ${nodeVersion}.x`)
+                throw new Error(
+                    `No stable version found matching Node.js ${nodeVersion}.x`,
+                )
             }
             version = versions[0].version
         }
@@ -60828,7 +60834,10 @@ class Node extends tool/* default */.A {
     async getNodeVersion(desiredVersion) {
         // If we're given a version, parse it
         if (desiredVersion) {
-            const version = await this.parseNvmrcVersion(".node-version", desiredVersion)
+            const version = await this.parseNvmrcVersion(
+                ".node-version",
+                desiredVersion,
+            )
             return [version, true]
         }
 
