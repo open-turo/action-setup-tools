@@ -80,6 +80,24 @@ describe("install", () => {
     })
 })
 
+// Move mockNodeVersionsApiCall outside of any describe block
+const mockNodeVersionsApiCall = (shouldThrowError) => {
+    const api = nock("https://nodejs.org")
+    const method = api.get("/download/release/index.json")
+    if (shouldThrowError) {
+        method.reply(500)
+    } else {
+        method.reply(200, [
+            { version: "v54.0.0", lts: "latest" },
+            { version: "v20.18.1" },
+            { version: "v20.18.0" },
+            { version: "v20.17.0" },
+            ...nodeVersions
+        ])
+    }
+    return api
+}
+
 describe("setup", () => {
     const cleaner = new Cleaner(Node)
 
@@ -102,17 +120,6 @@ describe("setup", () => {
         const readFile = jest.fn().mockReturnValue(version)
         jest.spyOn(fs, "existsSync").mockImplementation(exists)
         jest.spyOn(fs, "readFileSync").mockImplementation(readFile)
-    }
-
-    const mockNodeVersionsApiCall = (shouldThrowError) => {
-        const api = nock("https://nodejs.org")
-        const method = api.get("/download/release/index.json")
-        if (shouldThrowError) {
-            method.reply(500)
-        } else {
-            method.reply(200, nodeVersions)
-        }
-        return api
     }
 
     it.each([
@@ -162,5 +169,31 @@ describe("setup", () => {
         const exists = jest.fn().mockImplementation(() => false)
         jest.spyOn(fs, "existsSync").mockImplementation(exists)
         return new Node().setup()
+    })
+})
+
+describe("getNodeVersion", () => {
+    const cleaner = new Cleaner(Node)
+    afterEach(cleaner.clean)
+
+    it("resolves major version number", async () => {
+        const api = mockNodeVersionsApiCall()
+        const [version, override] = await new Node().getNodeVersion("20")
+        expect(api.isDone()).toBeTruthy()
+        expect(version).toMatch(/^20\.\d+\.\d+$/)
+        expect(override).toBeTruthy()
+    })
+
+    it("handles specific version", async () => {
+        const [version, override] = await new Node().getNodeVersion("20.18.1")
+        expect(version).toBe("20.18.1")
+        expect(override).toBeTruthy()
+    })
+
+    it("throws on invalid major version", async () => {
+        const api = mockNodeVersionsApiCall()
+        await expect(new Node().getNodeVersion("99"))
+            .rejects.toThrow(/No stable version found matching Node.js 99.x/)
+        expect(api.isDone()).toBeTruthy()
     })
 })

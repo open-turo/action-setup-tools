@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist/main --source-map --license licenses.txt",
-    "test": "mocha test/**/*.test.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --testTimeout=300000 --verbose",
     "test:serial": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=300000 --verbose",
     "test:debug": "SILLY_LOGGING=1 RUNNER_DEBUG=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --testTimeout=300000 --verbose --detectOpenHandles",
     "test:fast": "TEST_FAST=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --testTimeout=30000 --verbose --testPathIgnorePatterns='python|index'",

@@ -60745,17 +60745,43 @@ class Node extends tool/* default */.A {
     /**
      * Given an nvmrc node version spec, convert it to a SemVer node version
      * @param {String} fileName File where to look for the node version
+     * @param {String} directVersion Direct node version to use instead of reading from file
      * @returns {Promise<string | undefined>} Parsed version
      */
-    async parseNvmrcVersion(fileName) {
-        const nodeVersion = this.getVersion(null, fileName)[0]
+    async parseNvmrcVersion(fileName, directVersion = null) {
+        const nodeVersion = directVersion || this.getVersion(null, fileName)[0]
         if (!nodeVersion) {
             return undefined
         }
+
+        // For direct versions that are complete (e.g., "20.18.1"), return as-is
+        if (directVersion && /^\d+\.\d+\.\d+$/.test(directVersion)) {
+            return directVersion
+        }
+
         // Versions are sorted from newest to oldest
         const versionData = await this.getVersionData()
         let version
-        if (/^lts\/.*/i.test(nodeVersion)) {
+
+        // Handle major version numbers (e.g., "20")
+        if (/^\d+$/.test(nodeVersion)) {
+            const versions = versionData
+                .filter(v => v.version.startsWith(`v${nodeVersion}.`))
+                .sort((a, b) => {
+                    const [aMaj, aMin, aPatch] = (0,find_versions/* default */.A)(a.version)[0].split('.').map(Number)
+                    const [bMaj, bMin, bPatch] = (0,find_versions/* default */.A)(b.version)[0].split('.').map(Number)
+                    if (aMaj !== bMaj) return bMaj - aMaj
+                    if (aMin !== bMin) return bMin - aMin
+                    return bPatch - aPatch
+                })
+
+            if (versions.length === 0) {
+                throw new Error(`No stable version found matching Node.js ${nodeVersion}.x`)
+            }
+            version = versions[0].version
+        }
+        // Handle LTS versions
+        else if (/^lts\/.*/i.test(nodeVersion)) {
             if (nodeVersion === "lts/*") {
                 // We just want the latest LTS
                 version = versionData.find((v) => v.lts !== false)?.version
@@ -60766,15 +60792,20 @@ class Node extends tool/* default */.A {
                         (v.lts || "").toLowerCase(),
                 )?.version
             }
-        } else if (nodeVersion === "node") {
+        }
+        // Handle "node" keyword
+        else if (nodeVersion === "node") {
             // We need the latest version
             version = versionData[0].version
-        } else {
+        }
+        // Handle specific or partial versions
+        else {
             // This could be a full or a partial version, so use partial matching
             version = versionData.find((v) =>
                 v.version.startsWith(`v${nodeVersion}`),
             )?.version
         }
+
         if (version !== undefined) {
             return (0,find_versions/* default */.A)(version)[0]
         }
@@ -60795,34 +60826,11 @@ class Node extends tool/* default */.A {
      * @returns {Promise<[string | null, boolean | null]>} Resolved node version
      */
     async getNodeVersion(desiredVersion) {
-        // Handle major version numbers like "20"
-        if (desiredVersion && /^\d+$/.test(desiredVersion)) {
-            // Get list of available versions
-            const versionData = await this.getVersionData()
-            const versions = versionData
-                .map((v) => (0,find_versions/* default */.A)(v.version)[0])
-                .filter(Boolean)
-                .filter((v) => v.startsWith(`${desiredVersion}.`))
-                .sort((a, b) => {
-                    const [aMaj, aMin, aPatch] = a.split(".").map(Number)
-                    const [bMaj, bMin, bPatch] = b.split(".").map(Number)
-                    if (aMaj !== bMaj) return bMaj - aMaj
-                    if (aMin !== bMin) return bMin - aMin
-                    return bPatch - aPatch
-                })
-
-            if (versions.length === 0) {
-                throw new Error(
-                    `No stable version found matching Node.js ${desiredVersion}.x`,
-                )
-            }
-
-            // Return latest stable version and mark it as overridden
-            return [versions[0], true]
+        // If we're given a version, parse it
+        if (desiredVersion) {
+            const version = await this.parseNvmrcVersion(".node-version", desiredVersion)
+            return [version, true]
         }
-
-        // If we're given a specific version, it's the one we want
-        if (desiredVersion) return [desiredVersion, true]
 
         // If .node-version is present, it's the one we want, and it's not
         // considered an override

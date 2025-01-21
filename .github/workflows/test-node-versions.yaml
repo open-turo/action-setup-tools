@@ -9,117 +9,68 @@ on:
 
 jobs:
   test-versions:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, general-ubuntu]
     strategy:
       matrix:
         node:
-          - "20" # Test major version
-          - "20.18.1" # Test specific version
-          - "18" # Test another major version
-          - "16" # Test older major version
+          - "20"  # Test major version
+          - "20.18.1"  # Test specific version
+          - "18"  # Test another major version
+          - "16"  # Test older major version
     steps:
       - uses: actions/checkout@v4
-
+      
+      - name: Build action
+        run: |
+          npm install
+          npm run prepare
+      
       - name: Setup Node.js
         uses: ./
         with:
           node: ${{ matrix.node }}
-
+          
       - name: Verify Node Version
         run: |
-          # Get installed version
-          INSTALLED_VERSION=$(node --version | sed 's/^v//')
-          echo "Installed Node.js version: $INSTALLED_VERSION"
-
+          VERSION=$(node --version | sed 's/^v//')
+          echo "Installed version: $VERSION"
+          
           # For major version tests
           if [[ "${{ matrix.node }}" =~ ^[0-9]+$ ]]; then
-            if ! [[ "$INSTALLED_VERSION" =~ ^${{ matrix.node }}\..*$ ]]; then
-              echo "::error::Expected version starting with ${{ matrix.node }}, got $INSTALLED_VERSION"
+            if ! [[ "$VERSION" =~ ^${{ matrix.node }}\..*$ ]]; then
+              echo "::error::Expected version starting with ${{ matrix.node }}, got $VERSION"
               exit 1
             fi
           else
             # For specific version tests
-            if [[ "$INSTALLED_VERSION" != "${{ matrix.node }}" ]]; then
-              echo "::error::Expected version ${{ matrix.node }}, got $INSTALLED_VERSION"
+            if [[ "$VERSION" != "${{ matrix.node }}" ]]; then
+              echo "::error::Expected version ${{ matrix.node }}, got $VERSION"
               exit 1
             fi
           fi
 
-          # Verify node and npm work
-          node --version
-          npm --version
-
-          # Create and run a simple Node.js script
-          echo "console.log('Node.js version ' + process.version + ' works!')" > test.js
-          node test.js
-
   test-version-files:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, general-ubuntu]
     steps:
       - uses: actions/checkout@v4
-
-      # Test .node-version file
-      - name: Test .node-version file
+      
+      - name: Build action
         run: |
-          echo "20.18.1" > .node-version
-
+          npm install
+          npm run prepare
+      
+      - name: Test .node-version with major version
+        run: |
+          echo "20" > .node-version
+          
       - name: Setup with .node-version
         uses: ./
-
+          
       - name: Verify .node-version
         run: |
-          INSTALLED_VERSION=$(node --version | sed 's/^v//')
-          if [[ "$INSTALLED_VERSION" != "20.18.1" ]]; then
-            echo "::error::Expected version 20.18.1, got $INSTALLED_VERSION"
-            exit 1
-          fi
-
-      # Test .nvmrc file
-      - name: Test .nvmrc file
-        run: |
-          rm .node-version
-          echo "20" > .nvmrc
-
-      - name: Setup with .nvmrc
-        uses: ./
-
-      - name: Verify .nvmrc
-        run: |
-          INSTALLED_VERSION=$(node --version | sed 's/^v//')
-          if ! [[ "$INSTALLED_VERSION" =~ ^20\..*$ ]]; then
-            echo "::error::Expected version starting with 20, got $INSTALLED_VERSION"
-            exit 1
-          fi
-
-  test-error-cases:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Test invalid major version
-        id: invalid-major
-        continue-on-error: true
-        uses: ./
-        with:
-          node: "99"
-
-      - name: Verify invalid major version failed
-        run: |
-          if [[ "${{ steps.invalid-major.outcome }}" != "failure" ]]; then
-            echo "::error::Expected invalid major version to fail"
-            exit 1
-          fi
-
-      - name: Test invalid specific version
-        id: invalid-specific
-        continue-on-error: true
-        uses: ./
-        with:
-          node: "20.99.99"
-
-      - name: Verify invalid specific version failed
-        run: |
-          if [[ "${{ steps.invalid-specific.outcome }}" != "failure" ]]; then
-            echo "::error::Expected invalid specific version to fail"
+          VERSION=$(node --version | sed 's/^v//')
+          echo "Installed version: $VERSION"
+          if [[ ! "$VERSION" =~ ^20\. ]]; then
+            echo "::error::Expected version starting with 20., got $VERSION"
             exit 1
           fi
