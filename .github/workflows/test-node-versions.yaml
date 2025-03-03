@@ -1,0 +1,76 @@
+name: Test Node Version Resolution
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "node.js"
+      - ".github/workflows/test-node-versions.yaml"
+
+jobs:
+  test-versions:
+    runs-on: [self-hosted, general-ubuntu]
+    strategy:
+      matrix:
+        node:
+          - "20" # Test major version
+          - "20.18.1" # Test specific version
+          - "18" # Test another major version
+          - "16" # Test older major version
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build action
+        run: |
+          npm install
+          npm run prepare
+
+      - name: Setup Node.js
+        uses: ./
+        with:
+          node: ${{ matrix.node }}
+
+      - name: Verify Node Version
+        run: |
+          VERSION=$(node --version | sed 's/^v//')
+          echo "Installed version: $VERSION"
+
+          # For major version tests
+          if [[ "${{ matrix.node }}" =~ ^[0-9]+$ ]]; then
+            if ! [[ "$VERSION" =~ ^${{ matrix.node }}\..*$ ]]; then
+              echo "::error::Expected version starting with ${{ matrix.node }}, got $VERSION"
+              exit 1
+            fi
+          else
+            # For specific version tests
+            if [[ "$VERSION" != "${{ matrix.node }}" ]]; then
+              echo "::error::Expected version ${{ matrix.node }}, got $VERSION"
+              exit 1
+            fi
+          fi
+
+  test-version-files:
+    runs-on: [self-hosted, general-ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build action
+        run: |
+          npm install
+          npm run prepare
+
+      - name: Test .node-version with major version
+        run: |
+          echo "20" > .node-version
+
+      - name: Setup with .node-version
+        uses: ./
+
+      - name: Verify .node-version
+        run: |
+          VERSION=$(node --version | sed 's/^v//')
+          echo "Installed version: $VERSION"
+          if [[ ! "$VERSION" =~ ^20\. ]]; then
+            echo "::error::Expected version starting with 20., got $VERSION"
+            exit 1
+          fi
