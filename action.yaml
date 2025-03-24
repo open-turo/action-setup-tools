@@ -3,6 +3,12 @@ description:
   GitHub Action that installs and provisions supported tools for workflow steps
   in self-hosted runners. This relies on the agent having supported tooling
   installed.
+
+inputs:
+  node:
+    description: 'Node.js version to install (e.g., "20" or "20.18.1")'
+    required: false
+
 outputs:
   go:
     description:
@@ -19,6 +25,7 @@ outputs:
   terraform:
     description:
       The version of Terraform that has been installed and is ready for use.
+
 runs:
   using: "node20"
   main: "dist/main/index.js"
