@@ -19,6 +19,9 @@ outputs:
   terraform:
     description:
       The version of Terraform that has been installed and is ready for use.
+  lacework:
+    description:
+      The status of Lacework security monitoring on the runner.
 runs:
   using: "node20"
   main: "dist/main/index.js"

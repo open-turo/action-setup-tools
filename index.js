@@ -6,6 +6,7 @@ import "./java.js"
 import "./node.js"
 import "./python.js"
 import "./terraform.js"
+import "./lacework.js"
 
 // Get our Tool class registry
 import Tool from "./tool.js"
