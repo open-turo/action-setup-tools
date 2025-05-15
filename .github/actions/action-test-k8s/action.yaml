@@ -1,0 +1,56 @@
+name: Action Test K8S
+description: Tests the action directly
+inputs:
+  use-versions:
+    description: "Use versions"
+    default: "true"
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check out repo
+      uses: actions/checkout@v4
+      if: hashFiles('action.yaml') == ''
+    - name: Run action using inputs
+      if: inputs.use-versions == 'true'
+      uses: ./
+      with:
+        runner-group: k8s
+        go: 1.17.1
+        java: 17.0.1-tem
+        node: 20.12.1
+        python: 3.12.1
+        terraform: 1.1.1
+    - name: Verify versions from inputs
+      if: inputs.use-versions == 'true'
+      shell: bash
+      run: |
+        go version | grep "1.17.1"
+        java -version 2>&1 | grep "17.0.1"
+        node --version | grep "20.12.1"
+        python3 --version 2>&1 | grep "3.12.1"
+        terraform version | grep "1.1.1"
+    - name: Create version files
+      shell: bash
+      if: inputs.use-versions != 'true'
+      run: |
+        # Write version files
+        echo "1.17.2" > .go-version
+        echo "java=17.0.2-tem" > .sdkmanrc
+        echo "20.12.2" > .node-version
+        echo "3.12.2" > .python-version
+        echo "1.1.2" > .terraform-version
+    - name: Verify action using version files
+      if: inputs.use-versions != 'true'
+      uses: ./
+      with:
+        runner-group: k8s
+    - name: Verify versions from files
+      if: inputs.use-versions != 'true'
+      shell: bash
+      run: |
+        go version | grep "1.17.2"
+        java -version 2>&1 | grep "17.0.2"
+        node --version | grep "20.12.2"
+        python3 --version 2>&1 | grep "3.12.2"
+        terraform version | grep "1.1.2"

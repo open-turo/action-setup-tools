@@ -1,24 +1,199 @@
 name: action-setup-tools
+
 description:
   GitHub Action that installs and provisions supported tools for workflow steps
-  in self-hosted runners. This relies on the agent having supported tooling
-  installed.
+  in self-hosted ec2. This relies on the agent having supported tooling
+  installed. If the agent is running in a K8S runner, the action will use GH
+  setup tools without preinstalled tools e.g pyenv.
+
+inputs:
+  runner-group:
+    required: false
+    description: "Runner group name used to determine environment"
+  go:
+    required: false
+  node:
+    required: false
+  java:
+    required: false
+  python:
+    required: false
+  terraform:
+    required: false
+
 outputs:
   go:
-    description:
-      The version of golang that has been installed and is ready for use.
+    description: The version of Go installed.
+    value: ${{ steps.detect-go.outputs.version }}
   node:
-    description:
-      The verison of Node.js that has been installed and is ready for use.
+    description: The version of Node installed.
+    value: ${{ steps.detect-node.outputs.version }}
   java:
-    description:
-      The version of Java that has been installed and is ready for use.
+    description: The version of Java installed.
+    value: ${{ steps.detect-java.outputs.version }}
   python:
-    description:
-      The version of Python that has been installed and is ready for use.
+    description: The version of Python installed.
+    value: ${{ steps.detect-python.outputs.version }}
   terraform:
-    description:
-      The version of Terraform that has been installed and is ready for use.
+    description: The version of Terraform installed.
+    value: ${{ steps.detect-terraform.outputs.version }}
+
 runs:
-  using: "node20"
-  main: "dist/main/index.js"
+  using: "composite"
+  steps:
+    - id: detect-env
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.runner-group }}" ]]; then
+          echo "runner_env=${{ inputs.runner-group }}" >> $GITHUB_ENV
+        elif [[ -f "/var/run/secrets/kubernetes.io/serviceaccount/token" ]]; then
+          echo "runner_env=k8s" >> $GITHUB_ENV
+        else
+          echo "runner_env=ec2" >> $GITHUB_ENV
+        fi
+
+    # -------- K8S Setup (GH setup tools) --------
+
+    - id: detect-python
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.python }}" ]; then
+          echo "PYTHON_VERSION=${{ inputs.python }}" >> $GITHUB_ENV
+        elif [ -f .python-version ]; then
+          echo "PYTHON_VERSION_FILE=.python-version" >> $GITHUB_ENV
+        else
+          echo "PYTHON_VERSION=" >> $GITHUB_ENV
+        fi
+
+    - name: Setup Python
+      if:
+        (env.PYTHON_VERSION != '' || env.PYTHON_VERSION_FILE != '') &&
+        env.runner_env == 'k8s'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+
+    - id: detect-node
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.node }}" ]; then
+          echo "NODE_VERSION=${{ inputs.node }}" >> $GITHUB_ENV
+        elif [ -f .node-version ]; then
+          echo "NODE_VERSION_FILE=.node-version" >> $GITHUB_ENV
+        elif [ -f .nvmrc ]; then
+          echo "NODE_VERSION_FILE=.nvmrc" >> $GITHUB_ENV
+        else
+          echo "NODE_VERSION=20" >> $GITHUB_ENV
+        fi
+
+    - name: Setup Node.js
+      if:
+        (env.NODE_VERSION != '' || env.NODE_VERSION_FILE != '') &&
+        env.runner_env == 'k8s'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        node-version-file: ${{ env.NODE_VERSION_FILE }}
+
+    - id: detect-go
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.go }}" ]; then
+          echo "GO_VERSION=${{ inputs.go }}" >> $GITHUB_ENV
+        elif [ -f .go-version ]; then
+          echo "GO_VERSION=$(cat .go-version)" >> $GITHUB_ENV
+        elif [ -f go.mod ]; then
+          echo "GO_VERSION_FILE=go.mod" >> $GITHUB_ENV
+        elif [ -f go.work ]; then
+          echo "GO_VERSION_FILE=go.work" >> $GITHUB_ENV
+        else
+          echo "GO_VERSION=" >> $GITHUB_ENV
+        fi
+
+    - name: Setup Go
+      if:
+        (env.GO_VERSION != '' || env.GO_VERSION_FILE != '') && env.runner_env ==
+        'k8s'
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        go-version-file: ${{ env.GO_VERSION_FILE }}
+
+    - id: detect-java
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.java }}" ]; then
+          JAVA_VER="${{ inputs.java }}"
+        elif [ -f .sdkmanrc ]; then
+          JAVA_LINE=$(grep '^java=' .sdkmanrc | head -n1 | tr -d '[:space:]')
+          if [[ "$JAVA_LINE" =~ ^java=.+$ ]]; then
+            JAVA_VER="${JAVA_LINE#java=}"
+          fi
+        fi
+
+        if [ -n "$JAVA_VER" ]; then
+          # Extract base version (e.g., 17.0.2) and distribution suffix (e.g., tem)
+          if [[ "$JAVA_VER" == *-* ]]; then
+            JAVA_VERSION="${JAVA_VER%-*}"
+            JAVA_DIST="${JAVA_VER##*-}"
+          else
+            JAVA_VERSION="$JAVA_VER"
+            JAVA_DIST=""
+          fi
+
+          echo "JAVA_VERSION=$JAVA_VERSION" >> $GITHUB_ENV
+
+          # Map known SDKMAN suffixes to setup-java distribution keywords
+          case "$JAVA_DIST" in
+            tem) JAVA_DISTRIBUTION="temurin" ;;
+            zulu) JAVA_DISTRIBUTION="zulu" ;;
+            adpt) JAVA_DISTRIBUTION="adopt" ;;
+            openj9) JAVA_DISTRIBUTION="adopt-openj9" ;;
+            librca) JAVA_DISTRIBUTION="liberica" ;;
+            ms) JAVA_DISTRIBUTION="microsoft" ;;
+            amzn) JAVA_DISTRIBUTION="corretto" ;;
+            sem) JAVA_DISTRIBUTION="semeru" ;;
+            oracle) JAVA_DISTRIBUTION="oracle" ;;
+            dragonwell) JAVA_DISTRIBUTION="dragonwell" ;;
+            sapmchn) JAVA_DISTRIBUTION="sapmachine" ;;
+            graalce) JAVA_DISTRIBUTION="graalvm" ;;
+            jbr) JAVA_DISTRIBUTION="jetbrains" ;;
+            *) JAVA_DISTRIBUTION="$JAVA_DIST" ;; # Use as-is
+          esac
+
+          echo "JAVA_DISTRIBUTION=$JAVA_DISTRIBUTION" >> $GITHUB_ENV
+        else
+          echo "JAVA_VERSION=" >> $GITHUB_ENV
+        fi
+
+    - name: Setup Java
+      if: env.JAVA_VERSION != '' && env.runner_env == 'k8s'
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        java-version: ${{ env.JAVA_VERSION }}
+
+    - id: detect-terraform
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.terraform }}" ]; then
+          echo "TERRAFORM_VERSION=${{ inputs.terraform }}" >> $GITHUB_ENV
+        elif [ -f .terraform-version ]; then
+          echo "TERRAFORM_VERSION=$(cat .terraform-version)" >> $GITHUB_ENV
+        else
+          echo "TERRAFORM_VERSION=" >> $GITHUB_ENV
+        fi
+
+    - name: Setup Terraform
+      if: env.TERRAFORM_VERSION != '' && env.runner_env == 'k8s'
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+    #        terraform_wrapper: false
+
+    # -------- EC2 Setup (Node-based logic via JS) --------
+    - name: Run setup via Node.js (EC2)
+      if: env.runner_env == 'ec2'
+      shell: bash
+      run: node dist/main/index.js
