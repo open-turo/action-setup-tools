@@ -1,24 +1,179 @@
-name: action-setup-tools
+name: "Setup Multiple Language Environments"
 description:
-  GitHub Action that installs and provisions supported tools for workflow steps
-  in self-hosted runners. This relies on the agent having supported tooling
-  installed.
-outputs:
-  go:
-    description:
-      The version of golang that has been installed and is ready for use.
+  "Set up tools e.g Python, Node.js, Go, Java, and Terraform using standard
+  setup actions"
+
+inputs:
+  python:
+    description: "Python version (e.g. 3.11)"
+    required: false
   node:
-    description:
-      The verison of Node.js that has been installed and is ready for use.
+    description: "Node.js version (e.g. 18)"
+    required: false
+  go:
+    description: "Go version (e.g. 1.22)"
+    required: false
   java:
     description:
-      The version of Java that has been installed and is ready for use.
-  python:
-    description:
-      The version of Python that has been installed and is ready for use.
+      "Java version with distribution (e.g. 8.0.442-tem) which is the same as in
+      .sdkmanrc"
+    required: false
   terraform:
-    description:
-      The version of Terraform that has been installed and is ready for use.
+    description: "Terraform version (e.g. 1.6.6)"
+    required: false
+
 runs:
-  using: "node20"
-  main: "dist/main/index.js"
+  using: composite
+  steps:
+    # Detect version for Python from input or common version files.
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a known version file exists.
+    - id: detect-python
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.python }}" ]; then
+          echo "::set-output name=VERSION::${{ inputs.python }}"
+        elif [ -f .python-version ]; then
+          echo "::set-output name=VERSION_FILE::.python-version"
+        else
+          echo "::set-output name=VERSION::"
+        fi
+
+    - name: Setup Python
+      if:
+        steps.detect-python.outputs.VERSION != '' ||
+        steps.detect-python.outputs.VERSION_FILE != ''
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ steps.detect-python.outputs.VERSION }}
+        python-version-file: ${{ steps.detect-python.outputs.VERSION_FILE }}
+
+    # Detect version for Node from input or common version files.
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a known version file exists.
+    - id: detect-node
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.node }}" ]; then
+          echo "::set-output name=VERSION::${{ inputs.node }}"
+        elif [ -f .node-version ]; then
+          echo "::set-output name=VERSION_FILE::.node-version"
+        elif [ -f .nvmrc ]; then
+          echo "::set-output name=VERSION_FILE::.nvmrc"
+        else
+          echo "::set-output name=VERSION::20"
+        fi
+
+    - name: Setup Node.js
+      if:
+        steps.detect-node.outputs.VERSION != '' ||
+        steps.detect-node.outputs.VERSION_FILE != ''
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ steps.detect-node.outputs.VERSION }}
+        node-version-file: ${{ steps.detect-node.outputs.VERSION_FILE }}
+
+    # Detect version for Go from input or common version files.
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a known version file exists.
+    - id: detect-go
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.go }}" ]; then
+          echo "::set-output name=VERSION::${{ inputs.go }}"
+        elif [ -f .go-version ]; then
+          echo "::set-output name=VERSION::$(cat .go-version)"
+        elif [ -f go.mod ]; then
+          echo "::set-output name=VERSION_FILE::go.mod"
+        elif [ -f go.work ]; then
+          echo "::set-output name=VERSION_FILE::go.work"
+        else
+          echo "::set-output name=VERSION::"
+        fi
+
+    - name: Setup Go
+      if:
+        steps.detect-go.outputs.VERSION != '' ||
+        steps.detect-go.outputs.VERSION_FILE != ''
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ steps.detect-go.outputs.VERSION }}
+        go-version-file: ${{ steps.detect-go.outputs.VERSION_FILE }}
+
+    # Detect version for Java from input or common version files.
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a known version file exists.
+    - id: detect-java
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.java }}" ]; then
+          JAVA_VER="${{ inputs.java }}"
+        elif [ -f .sdkmanrc ]; then
+          JAVA_LINE=$(grep '^java=' .sdkmanrc | head -n1 | tr -d '[:space:]')
+          if [[ "$JAVA_LINE" =~ ^java=.+$ ]]; then
+            JAVA_VER="${JAVA_LINE#java=}"
+          fi
+        fi
+
+        if [ -n "$JAVA_VER" ]; then
+          # Extract base version (e.g., 17.0.2) and distribution suffix (e.g., tem)
+          if [[ "$JAVA_VER" == *-* ]]; then
+            JAVA_VERSION="${JAVA_VER%-*}"
+            JAVA_DIST="${JAVA_VER##*-}"
+          else
+            JAVA_VERSION="$JAVA_VER"
+            JAVA_DIST=""
+          fi
+
+          echo "::set-output name=VERSION::$JAVA_VERSION"
+
+          # Map known SDKMAN suffixes to setup-java distribution keywords
+          case "$JAVA_DIST" in
+            tem) JAVA_DISTRIBUTION="temurin" ;;
+            zulu) JAVA_DISTRIBUTION="zulu" ;;
+            adpt) JAVA_DISTRIBUTION="adopt" ;;
+            openj9) JAVA_DISTRIBUTION="adopt-openj9" ;;
+            librca) JAVA_DISTRIBUTION="liberica" ;;
+            ms) JAVA_DISTRIBUTION="microsoft" ;;
+            amzn) JAVA_DISTRIBUTION="corretto" ;;
+            sem) JAVA_DISTRIBUTION="semeru" ;;
+            oracle) JAVA_DISTRIBUTION="oracle" ;;
+            dragonwell) JAVA_DISTRIBUTION="dragonwell" ;;
+            sapmchn) JAVA_DISTRIBUTION="sapmachine" ;;
+            graalce) JAVA_DISTRIBUTION="graalvm" ;;
+            jbr) JAVA_DISTRIBUTION="jetbrains" ;;
+            *) JAVA_DISTRIBUTION="$JAVA_DIST" ;; # Use as-is
+          esac
+
+          echo "::set-output name=DISTRIBUTION::$JAVA_DISTRIBUTION"
+        else
+          echo "::set-output name=VERSION::"
+        fi
+
+    - name: Setup Java
+      if: steps.detect-java.outputs.VERSION != ''
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ steps.detect-java.outputs.DISTRIBUTION }}
+        java-version: ${{ steps.detect-java.outputs.VERSION }}
+
+    # Detect version for Terraform from input or common version files.
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a known version file exists.
+    - id: detect-terraform
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.terraform }}" ]; then
+          echo "::set-output name=VERSION::${{ inputs.terraform }}"
+        elif [ -f .terraform-version ]; then
+          echo "::set-output name=VERSION::$(cat .terraform-version)"
+        else
+          echo "::set-output name=VERSION::"
+        fi
+
+    - name: Setup Terraform
+      if: steps.detect-terraform.outputs.VERSION != ''
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ steps.detect-terraform.outputs.VERSION }}
+#        terraform_wrapper: false

@@ -11,37 +11,47 @@ runs:
     - name: Check out repo
       uses: actions/checkout@v4
       if: hashFiles('action.yaml') == ''
-    - name: Install and build package
-      shell: bash
-      run: npm ci
     - name: Run action using inputs
       if: inputs.use-versions == 'true'
-      uses: ./versions
+      uses: ./
       with:
-        go: 1.17.6
-        # java: 17.0.2-tem  # TODO: Uncomment when sdkman isn't broken
-        node: 16.13.2
-        python: 3.10.2
-        terraform: 1.1.5
+        go: 1.17.1
+        java: 17.0.1-tem
+        node: 20.12.1
+        python: 3.12.1
+        terraform: 1.1.1
+    - name: Verify versions from inputs
+      if: inputs.use-versions == 'true'
+      shell: bash
+      run: |
+        check() {
+          "$@" || { echo "::error::$* failed"; exit 1; }
+        }
+
+        check go version | grep "1.17.1"
+        check java -version 2>&1 | grep "17.0.1"
+        check node --version | grep "20.12.1"
+        check python3 --version 2>&1 | grep "3.12.1"
+        check terraform version | grep "1.1.1"
     - name: Create version files
       shell: bash
       if: inputs.use-versions != 'true'
       run: |
         # Write version files
-        # echo "java=17.0.2-tem" > .sdkmanrc  # TODO: Broooken
-        echo "16.13.2" > .node-version
-        echo "3.10.2" > .python-version
-        echo "1.17.6" > .go-version
-        echo "1.1.5" > .terraform-version
-    - name: Run action using version files
+        echo "1.17.2" > .go-version
+        echo "java=17.0.2-tem" > .sdkmanrc
+        echo "20.12.2" > .node-version
+        echo "3.12.2" > .python-version
+        echo "1.1.2" > .terraform-version
+    - name: Verify action using version files
       if: inputs.use-versions != 'true'
       uses: ./
-    - shell: bash
+    - name: Verify versions from files
+      if: inputs.use-versions != 'true'
+      shell: bash
       run: |
-        # Check versions
-        go version | grep "1.17.6" || echo "::error::go version mismatch"
-        # java -version 2>&1 | grep "17.0.2" || echo "::error::java version mismatch"  # TODO: Busted
-        node --version | grep "16.13.2" || echo "::error::node version mismatch"
-        yarn --version || echo "::error::yarn not available"
-        python --version || grep "3.10.2" || echo "::error::python version mismatch"
-        terraform --version | grep "1.1.5" || echo "::error::terraform version mismatch"
+        go version | grep "1.17.2"
+        java -version 2>&1 | grep "17.0.2"
+        node --version | grep "20.12.2"
+        python3 --version 2>&1 | grep "3.12.2"
+        terraform version | grep "1.1.2"
