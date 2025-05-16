@@ -61,7 +61,7 @@ runs:
         elif [ -f .nvmrc ]; then
           echo "::set-output name=VERSION_FILE::.nvmrc"
         else
-          echo "::set-output name=VERSION::20"
+          echo "::set-output name=VERSION::"
         fi
 
     - name: Setup Node.js
