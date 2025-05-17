@@ -120,7 +120,7 @@ runs:
       if:
         steps.detect-go.outputs.VERSION != '' ||
         steps.detect-go.outputs.VERSION_FILE != ''
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.detect-go.outputs.VERSION }}
         go-version-file: ${{ steps.detect-go.outputs.VERSION_FILE }}
