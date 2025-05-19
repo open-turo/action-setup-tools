@@ -10,6 +10,9 @@ inputs:
   node:
     description: "Node.js version (e.g. 18)"
     required: false
+  yarn:
+    description: "Yarn version (e.g. 1.22.22)"
+    required: false
   go:
     description: "Go version (e.g. 1.22)"
     required: false
@@ -72,6 +75,28 @@ runs:
       with:
         node-version: ${{ steps.detect-node.outputs.VERSION }}
         node-version-file: ${{ steps.detect-node.outputs.VERSION_FILE }}
+
+    # Detects if yarn is being used as package manager
+    # This step enables conditional execution of the setup action,
+    # either when a version is explicitly provided or when a `yarn.lock` file exists.
+    # Right now, we only support installing yarn v1.x if the version is not explicitly provided.
+    - id: detect-yarn
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.yarn }}" ]; then
+          echo "::set-output name=VERSION::${{ inputs.yarn }}"
+        elif [ -f yarn.lock ]; then
+          echo "::set-output name=LOCK_FILE::yarn.lock"
+        fi
+
+    - name: Setup Yarn
+      shell: bash
+      run: |
+        if [ -n "${{ steps.detect-yarn.outputs.VERSION }}" ]; then
+          npm install -g yarn@${{ steps.detect-yarn.outputs.VERSION }}
+        elif [ -n "${{ steps.detect-yarn.outputs.LOCK_FILE }}" ]; then
+          npm install -g yarn
+        fi
 
     # Detect version for Go from input or common version files.
     # This step enables conditional execution of the setup action,
