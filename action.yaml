@@ -35,11 +35,11 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.python }}" ]; then
-          echo "::set-output name=VERSION::${{ inputs.python }}"
+          echo "VERSION=${{ inputs.python }}" >> $GITHUB_OUTPUT
         elif [ -f .python-version ]; then
-          echo "::set-output name=VERSION_FILE::.python-version"
+          echo "VERSION_FILE=.python-version" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=VERSION::"
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Python
@@ -58,13 +58,13 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.node }}" ]; then
-          echo "::set-output name=VERSION::${{ inputs.node }}"
+          echo "VERSION=${{ inputs.node }}" >> $GITHUB_OUTPUT
         elif [ -f .node-version ]; then
-          echo "::set-output name=VERSION_FILE::.node-version"
+          echo "VERSION_FILE=.node-version" >> $GITHUB_OUTPUT
         elif [ -f .nvmrc ]; then
-          echo "::set-output name=VERSION_FILE::.nvmrc"
+          echo "VERSION_FILE=.nvmrc" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=VERSION::"
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Node.js
@@ -105,15 +105,15 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.go }}" ]; then
-          echo "::set-output name=VERSION::${{ inputs.go }}"
+          echo "VERSION=${{ inputs.go }}" >> $GITHUB_OUTPUT
         elif [ -f .go-version ]; then
-          echo "::set-output name=VERSION::$(cat .go-version)"
+          echo "VERSION=$(cat .go-version)" >> $GITHUB_OUTPUT
         elif [ -f go.mod ]; then
-          echo "::set-output name=VERSION_FILE::go.mod"
+          echo "VERSION_FILE=go.mod" >> $GITHUB_OUTPUT
         elif [ -f go.work ]; then
-          echo "::set-output name=VERSION_FILE::go.work"
+          echo "VERSION_FILE=go.work" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=VERSION::"
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Go
@@ -150,7 +150,7 @@ runs:
             JAVA_DIST=""
           fi
 
-          echo "::set-output name=VERSION::$JAVA_VERSION"
+          echo "VERSION=$JAVA_VERSION" >> $GITHUB_OUTPUT
 
           # Map known SDKMAN suffixes to setup-java distribution keywords
           case "$JAVA_DIST" in
@@ -170,9 +170,9 @@ runs:
             *) JAVA_DISTRIBUTION="$JAVA_DIST" ;; # Use as-is
           esac
 
-          echo "::set-output name=DISTRIBUTION::$JAVA_DISTRIBUTION"
+          echo "DISTRIBUTION=$JAVA_DISTRIBUTION" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=VERSION::"
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Java
@@ -189,11 +189,11 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.terraform }}" ]; then
-          echo "::set-output name=VERSION::${{ inputs.terraform }}"
+          echo "VERSION=${{ inputs.terraform }}" >> $GITHUB_OUTPUT
         elif [ -f .terraform-version ]; then
-          echo "::set-output name=VERSION::$(cat .terraform-version)"
+          echo "VERSION=$(cat .terraform-version)" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=VERSION::"
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Terraform
