@@ -78,9 +78,12 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.yarn }}" ]; then
-          echo "::set-output name=VERSION::${{ inputs.yarn }}"
+          echo "VERSION=${{ inputs.yarn }}" >> $GITHUB_OUTPUT
         elif [ -f yarn.lock ]; then
-          echo "::set-output name=LOCK_FILE::yarn.lock"
+          echo "LOCK_FILE=yarn.lock" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=" >> $GITHUB_OUTPUT
+          echo "LOCK_FILE=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Yarn
