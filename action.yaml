@@ -37,19 +37,16 @@ runs:
         if [ -n "${{ inputs.python }}" ]; then
           echo "VERSION=${{ inputs.python }}" >> $GITHUB_OUTPUT
         elif [ -f .python-version ]; then
-          echo "VERSION_FILE=.python-version" >> $GITHUB_OUTPUT
+          echo "VERSION=$(cat .python-version)" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Python
-      if:
-        steps.detect-python.outputs.VERSION != '' ||
-        steps.detect-python.outputs.VERSION_FILE != ''
+      if: steps.detect-python.outputs.VERSION != ''
       uses: actions/setup-python@v5
       with:
         python-version: ${{ steps.detect-python.outputs.VERSION }}
-        python-version-file: ${{ steps.detect-python.outputs.VERSION_FILE }}
 
     # Detect version for Node from input or common version files.
     # This step enables conditional execution of the setup action,
@@ -60,21 +57,18 @@ runs:
         if [ -n "${{ inputs.node }}" ]; then
           echo "VERSION=${{ inputs.node }}" >> $GITHUB_OUTPUT
         elif [ -f .node-version ]; then
-          echo "VERSION_FILE=.node-version" >> $GITHUB_OUTPUT
+          echo "VERSION=$(cat .node-version)" >> $GITHUB_OUTPUT
         elif [ -f .nvmrc ]; then
-          echo "VERSION_FILE=.nvmrc" >> $GITHUB_OUTPUT
+          echo "VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Node.js
-      if:
-        steps.detect-node.outputs.VERSION != '' ||
-        steps.detect-node.outputs.VERSION_FILE != ''
+      if: steps.detect-node.outputs.VERSION != ''
       uses: actions/setup-node@v4
       with:
         node-version: ${{ steps.detect-node.outputs.VERSION }}
-        node-version-file: ${{ steps.detect-node.outputs.VERSION_FILE }}
 
     # Detects if yarn is being used as package manager
     # This step enables conditional execution of the setup action,
@@ -114,15 +108,22 @@ runs:
           echo "VERSION_FILE=go.work" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
+          echo "VERSION_FILE=" >> $GITHUB_OUTPUT
         fi
 
-    - name: Setup Go
-      if:
-        steps.detect-go.outputs.VERSION != '' ||
-        steps.detect-go.outputs.VERSION_FILE != ''
+    - name: Setup Go (from input)
+      if: steps.detect-go.outputs.VERSION != ''
       uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.detect-go.outputs.VERSION }}
+
+    # since go versions are defined in different formats, it's better to let setup-go to handle it
+    - name: Setup Go (from version file)
+      if:
+        steps.detect-go.outputs.VERSION == '' &&
+        steps.detect-go.outputs.VERSION_FILE != ''
+      uses: actions/setup-go@v5
+      with:
         go-version-file: ${{ steps.detect-go.outputs.VERSION_FILE }}
 
     # Detect version for Java from input or common version files.
