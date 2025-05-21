@@ -119,6 +119,7 @@ runs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.detect-go.outputs.VERSION }}
+        cache: false
 
     # since go versions are defined in different formats, it's better to let setup-go to handle it
     - name: Setup Go (from version file)
@@ -128,6 +129,7 @@ runs:
       uses: actions/setup-go@v5
       with:
         go-version-file: ${{ steps.detect-go.outputs.VERSION_FILE }}
+        cache: false
 
     # Detect version for Java from input or common version files.
     # This step enables conditional execution of the setup action,
