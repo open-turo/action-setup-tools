@@ -182,11 +182,17 @@ runs:
         fi
 
     - name: Setup Java
+      id: setup-java
       if: steps.detect-java.outputs.VERSION != ''
       uses: actions/setup-java@v4
       with:
         distribution: ${{ steps.detect-java.outputs.DISTRIBUTION }}
         java-version: ${{ steps.detect-java.outputs.VERSION }}
+
+    - name: Export JAVA_HOME for subsequent steps
+      shell: bash
+      if: steps.detect-java.outputs.VERSION != ''
+      run: echo "JAVA_HOME=${{ steps.setup-java.outputs.path }}" >> $GITHUB_ENV
 
     # Detect version for Terraform from input or common version files.
     # This step enables conditional execution of the setup action,

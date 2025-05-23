@@ -55,3 +55,14 @@ runs:
         node --version | grep "20.12.2"
         python3 --version 2>&1 | grep "3.12.2"
         terraform version | grep "1.1.2"
+    - name: Verify JAVA_HOME and Java availability
+      shell: bash
+      run: |
+        if ! command -v java >/dev/null; then
+          echo "::error::Java command not found in PATH"
+          exit 1
+        fi
+        if [ -z "$JAVA_HOME" ]; then
+          echo "::error::JAVA_HOME is not set"
+          exit 1
+        fi
