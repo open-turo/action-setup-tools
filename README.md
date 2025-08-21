@@ -4,6 +4,7 @@
 <!-- action-docs-description -->
 ## Description
 
+Test to trigger CI.
 GitHub Action that installs and provisions supported tools for workflow steps in self-hosted runners. This relies on the agent having supported tooling installed.
 <!-- action-docs-description -->
 <!-- prettier-ignore-end -->
