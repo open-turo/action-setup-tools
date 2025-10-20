@@ -33,9 +33,11 @@ runs:
     # either when a version is explicitly provided or when a known version file exists.
     - id: detect-python
       shell: bash
+      env:
+        PYTHON_INPUT: ${{ inputs.python }}
       run: |
-        if [ -n "${{ inputs.python }}" ]; then
-          echo "VERSION=${{ inputs.python }}" >> $GITHUB_OUTPUT
+        if [ -n "$PYTHON_INPUT" ]; then
+          echo "VERSION=$PYTHON_INPUT" >> $GITHUB_OUTPUT
         elif [ -f .python-version ]; then
           echo "VERSION=$(cat .python-version)" >> $GITHUB_OUTPUT
         else
@@ -53,9 +55,11 @@ runs:
     # either when a version is explicitly provided or when a known version file exists.
     - id: detect-node
       shell: bash
+      env:
+        NODE_INPUT: ${{ inputs.node }}
       run: |
-        if [ -n "${{ inputs.node }}" ]; then
-          echo "VERSION=${{ inputs.node }}" >> $GITHUB_OUTPUT
+        if [ -n "$NODE_INPUT" ]; then
+          echo "VERSION=$NODE_INPUT" >> $GITHUB_OUTPUT
         elif [ -f .node-version ]; then
           echo "VERSION=$(cat .node-version)" >> $GITHUB_OUTPUT
         elif [ -f .nvmrc ]; then
@@ -76,9 +80,11 @@ runs:
     # Right now, we only support installing yarn v1.x if the version is not explicitly provided.
     - id: detect-yarn
       shell: bash
+      env:
+        YARN_INPUT: ${{ inputs.yarn }}
       run: |
-        if [ -n "${{ inputs.yarn }}" ]; then
-          echo "VERSION=${{ inputs.yarn }}" >> $GITHUB_OUTPUT
+        if [ -n "$YARN_INPUT" ]; then
+          echo "VERSION=$YARN_INPUT" >> $GITHUB_OUTPUT
         elif [ -f yarn.lock ]; then
           echo "LOCK_FILE=yarn.lock" >> $GITHUB_OUTPUT
         else
@@ -88,10 +94,13 @@ runs:
 
     - name: Setup Yarn
       shell: bash
+      env:
+        YARN_VERSION: ${{ steps.detect-yarn.outputs.VERSION }}
+        YARN_LOCK_FILE: ${{ steps.detect-yarn.outputs.LOCK_FILE }}
       run: |
-        if [ -n "${{ steps.detect-yarn.outputs.VERSION }}" ]; then
-          npm install -g yarn@${{ steps.detect-yarn.outputs.VERSION }}
-        elif [ -n "${{ steps.detect-yarn.outputs.LOCK_FILE }}" ]; then
+        if [ -n "$YARN_VERSION" ]; then
+          npm install -g yarn@$YARN_VERSION
+        elif [ -n "$YARN_LOCK_FILE" ]; then
           npm install -g yarn
         fi
 
@@ -100,9 +109,11 @@ runs:
     # either when a version is explicitly provided or when a known version file exists.
     - id: detect-go
       shell: bash
+      env:
+        GO_INPUT: ${{ inputs.go }}
       run: |
-        if [ -n "${{ inputs.go }}" ]; then
-          echo "VERSION=${{ inputs.go }}" >> $GITHUB_OUTPUT
+        if [ -n "$GO_INPUT" ]; then
+          echo "VERSION=$GO_INPUT" >> $GITHUB_OUTPUT
         elif [ -f .go-version ]; then
           echo "VERSION=$(cat .go-version)" >> $GITHUB_OUTPUT
         elif [ -f go.mod ]; then
@@ -136,9 +147,11 @@ runs:
     # either when a version is explicitly provided or when a known version file exists.
     - id: detect-java
       shell: bash
+      env:
+        JAVA_INPUT: ${{ inputs.java }}
       run: |
-        if [ -n "${{ inputs.java }}" ]; then
-          JAVA_VER="${{ inputs.java }}"
+        if [ -n "$JAVA_INPUT" ]; then
+          JAVA_VER="$JAVA_INPUT"
         elif [ -f .sdkmanrc ]; then
           JAVA_LINE=$(grep '^java=' .sdkmanrc | head -n1 | tr -d '[:space:]')
           if [[ "$JAVA_LINE" =~ ^java=.+$ ]]; then
@@ -192,16 +205,20 @@ runs:
     - name: Export JAVA_HOME for subsequent steps
       shell: bash
       if: steps.detect-java.outputs.VERSION != ''
-      run: echo "JAVA_HOME=${{ steps.setup-java.outputs.path }}" >> $GITHUB_ENV
+      env:
+        JAVA_PATH: ${{ steps.setup-java.outputs.path }}
+      run: echo "JAVA_HOME=$JAVA_PATH" >> $GITHUB_ENV
 
     # Detect version for Terraform from input or common version files.
     # This step enables conditional execution of the setup action,
     # either when a version is explicitly provided or when a known version file exists.
     - id: detect-terraform
       shell: bash
+      env:
+        TERRAFORM_INPUT: ${{ inputs.terraform }}
       run: |
-        if [ -n "${{ inputs.terraform }}" ]; then
-          echo "VERSION=${{ inputs.terraform }}" >> $GITHUB_OUTPUT
+        if [ -n "$TERRAFORM_INPUT" ]; then
+          echo "VERSION=$TERRAFORM_INPUT" >> $GITHUB_OUTPUT
         elif [ -f .terraform-version ]; then
           echo "VERSION=$(cat .terraform-version)" >> $GITHUB_OUTPUT
         else
