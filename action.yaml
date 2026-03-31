@@ -197,7 +197,7 @@ runs:
     - name: Setup Java
       id: setup-java
       if: steps.detect-java.outputs.VERSION != ''
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: ${{ steps.detect-java.outputs.DISTRIBUTION }}
         java-version: ${{ steps.detect-java.outputs.VERSION }}
