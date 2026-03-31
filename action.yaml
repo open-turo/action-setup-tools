@@ -127,7 +127,7 @@ runs:
 
     - name: Setup Go (from input)
       if: steps.detect-go.outputs.VERSION != ''
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ steps.detect-go.outputs.VERSION }}
         cache: false
@@ -137,7 +137,7 @@ runs:
       if:
         steps.detect-go.outputs.VERSION == '' &&
         steps.detect-go.outputs.VERSION_FILE != ''
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: ${{ steps.detect-go.outputs.VERSION_FILE }}
         cache: false
