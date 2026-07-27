@@ -10,8 +10,17 @@ inputs:
   node:
     description: "Node.js version (e.g. 18)"
     required: false
+  npm:
+    description: "NPM version (e.g. 11.7.0)"
+    required: false
+  pnpm:
+    description: "PNPM version (e.g. 9.9.0)"
+    required: false
   yarn:
     description: "Yarn version (e.g. 1.22.22)"
+    required: false
+  bun:
+    description: "Bun version (e.g. 1.3.5)"
     required: false
   go:
     description: "Go version (e.g. 1.22)"
@@ -74,35 +83,85 @@ runs:
       with:
         node-version: ${{ steps.detect-node.outputs.VERSION }}
 
-    # Detects if yarn is being used as package manager
-    # This step enables conditional execution of the setup action,
-    # either when a version is explicitly provided or when a `yarn.lock` file exists.
-    # Right now, we only support installing yarn v1.x if the version is not explicitly provided.
-    - id: detect-yarn
+    # Detect which package manager to use based on lock files or explicit inputs.
+    # Priority order: npm > pnpm > yarn > bun > default to yarn v1
+    - id: detect-package-manager
       shell: bash
       env:
+        NPM_INPUT: ${{ inputs.npm }}
+        PNPM_INPUT: ${{ inputs.pnpm }}
         YARN_INPUT: ${{ inputs.yarn }}
+        BUN_INPUT: ${{ inputs.bun }}
       run: |
-        if [ -n "$YARN_INPUT" ]; then
+        # Check for explicit version inputs first
+        if [ -n "$NPM_INPUT" ]; then
+          echo "PACKAGE_MANAGER=npm" >> $GITHUB_OUTPUT
+          echo "VERSION=$NPM_INPUT" >> $GITHUB_OUTPUT
+        elif [ -n "$PNPM_INPUT" ]; then
+          echo "PACKAGE_MANAGER=pnpm" >> $GITHUB_OUTPUT
+          echo "VERSION=$PNPM_INPUT" >> $GITHUB_OUTPUT
+        elif [ -n "$YARN_INPUT" ]; then
+          echo "PACKAGE_MANAGER=yarn" >> $GITHUB_OUTPUT
           echo "VERSION=$YARN_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f yarn.lock ]; then
-          echo "LOCK_FILE=yarn.lock" >> $GITHUB_OUTPUT
-        else
+        elif [ -n "$BUN_INPUT" ]; then
+          echo "PACKAGE_MANAGER=bun" >> $GITHUB_OUTPUT
+          echo "VERSION=$BUN_INPUT" >> $GITHUB_OUTPUT
+        # Check for lock files
+        elif [ -f package-lock.json ]; then
+          echo "PACKAGE_MANAGER=npm" >> $GITHUB_OUTPUT
           echo "VERSION=" >> $GITHUB_OUTPUT
-          echo "LOCK_FILE=" >> $GITHUB_OUTPUT
+        elif [ -f pnpm-lock.yaml ]; then
+          echo "PACKAGE_MANAGER=pnpm" >> $GITHUB_OUTPUT
+          echo "VERSION=" >> $GITHUB_OUTPUT
+        elif [ -f yarn.lock ]; then
+          echo "PACKAGE_MANAGER=yarn" >> $GITHUB_OUTPUT
+          echo "VERSION=" >> $GITHUB_OUTPUT
+        elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+          echo "PACKAGE_MANAGER=bun" >> $GITHUB_OUTPUT
+          echo "VERSION=" >> $GITHUB_OUTPUT
+        # Default to yarn v1 if no package manager is detected
+        else
+          echo "PACKAGE_MANAGER=yarn" >> $GITHUB_OUTPUT
+          echo "VERSION=" >> $GITHUB_OUTPUT
         fi
 
-    - name: Setup Yarn
+    - name: Setup Package Manager
       shell: bash
       env:
-        YARN_VERSION: ${{ steps.detect-yarn.outputs.VERSION }}
-        YARN_LOCK_FILE: ${{ steps.detect-yarn.outputs.LOCK_FILE }}
+        PACKAGE_MANAGER:
+          ${{ steps.detect-package-manager.outputs.PACKAGE_MANAGER }}
+        VERSION: ${{ steps.detect-package-manager.outputs.VERSION }}
       run: |
-        if [ -n "$YARN_VERSION" ]; then
-          npm install -g yarn@$YARN_VERSION
-        elif [ -n "$YARN_LOCK_FILE" ]; then
-          npm install -g yarn
-        fi
+        case "$PACKAGE_MANAGER" in
+          npm)
+            if [ -n "$VERSION" ]; then
+              npm install -g npm@$VERSION
+            else
+              npm install -g npm@latest
+            fi
+            ;;
+          pnpm)
+            if [ -n "$VERSION" ]; then
+              npm install -g pnpm@$VERSION
+            else
+              npm install -g pnpm
+            fi
+            ;;
+          yarn)
+            if [ -n "$VERSION" ]; then
+              npm install -g yarn@$VERSION
+            else
+              npm install -g yarn
+            fi
+            ;;
+          bun)
+            if [ -n "$VERSION" ]; then
+              npm install -g bun@$VERSION
+            else
+              npm install -g bun
+            fi
+            ;;
+        esac
 
     # Detect version for Go from input or common version files.
     # This step enables conditional execution of the setup action,
