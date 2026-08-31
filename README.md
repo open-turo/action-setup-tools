@@ -115,9 +115,17 @@ By default the action will look for a `.node-version` file in the root level
 directory. If present it will setup the node environment to use that version of
 node, installing the specified version if necessary.
 
-This will also attempt to install the `yarn` command and make it available to
-future steps in the workflow. If a yarn version is not provided, right now we
-only support installing yarn classic (i.e. v1.x) by default.
+This will also detect and install the appropriate package manager based on lock
+files present in the repository:
+
+-   **npm**: Detected via `package-lock.json`
+-   **pnpm**: Detected via `pnpm-lock.yaml`
+-   **yarn**: Detected via `yarn.lock`
+-   **bun**: Detected via `bun.lock`
+
+If a specific version is provided via inputs, that version will be installed.
+Otherwise, the package manager will be installed with a sensible default version
+when its corresponding lock file is detected.
 
 The Node.js tools are made available via
 [nodenv](https://github.com/nodenv/nodenv).
