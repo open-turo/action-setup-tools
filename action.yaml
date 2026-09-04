@@ -201,6 +201,7 @@ runs:
       with:
         distribution: ${{ steps.detect-java.outputs.DISTRIBUTION }}
         java-version: ${{ steps.detect-java.outputs.VERSION }}
+        verify-signature: false
 
     - name: Export JAVA_HOME for subsequent steps
       shell: bash
