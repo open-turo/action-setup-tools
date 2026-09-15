@@ -24,6 +24,11 @@ inputs:
   terraform:
     description: "Terraform version (e.g. 1.6.6)"
     required: false
+  working-directory:
+    description:
+      "Directory to look for version files in (e.g. .python-version, yarn.lock)"
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -35,11 +40,12 @@ runs:
       shell: bash
       env:
         PYTHON_INPUT: ${{ inputs.python }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$PYTHON_INPUT" ]; then
           echo "VERSION=$PYTHON_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f .python-version ]; then
-          echo "VERSION=$(cat .python-version)" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/.python-version" ]; then
+          echo "VERSION=$(cat "$WORKING_DIR/.python-version")" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
         fi
@@ -57,13 +63,14 @@ runs:
       shell: bash
       env:
         NODE_INPUT: ${{ inputs.node }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$NODE_INPUT" ]; then
           echo "VERSION=$NODE_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f .node-version ]; then
-          echo "VERSION=$(cat .node-version)" >> $GITHUB_OUTPUT
-        elif [ -f .nvmrc ]; then
-          echo "VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/.node-version" ]; then
+          echo "VERSION=$(cat "$WORKING_DIR/.node-version")" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/.nvmrc" ]; then
+          echo "VERSION=$(cat "$WORKING_DIR/.nvmrc")" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
         fi
@@ -82,11 +89,12 @@ runs:
       shell: bash
       env:
         YARN_INPUT: ${{ inputs.yarn }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$YARN_INPUT" ]; then
           echo "VERSION=$YARN_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f yarn.lock ]; then
-          echo "LOCK_FILE=yarn.lock" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/yarn.lock" ]; then
+          echo "LOCK_FILE=$WORKING_DIR/yarn.lock" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
           echo "LOCK_FILE=" >> $GITHUB_OUTPUT
@@ -111,15 +119,16 @@ runs:
       shell: bash
       env:
         GO_INPUT: ${{ inputs.go }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$GO_INPUT" ]; then
           echo "VERSION=$GO_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f .go-version ]; then
-          echo "VERSION=$(cat .go-version)" >> $GITHUB_OUTPUT
-        elif [ -f go.mod ]; then
-          echo "VERSION_FILE=go.mod" >> $GITHUB_OUTPUT
-        elif [ -f go.work ]; then
-          echo "VERSION_FILE=go.work" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/.go-version" ]; then
+          echo "VERSION=$(cat "$WORKING_DIR/.go-version")" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/go.mod" ]; then
+          echo "VERSION_FILE=$WORKING_DIR/go.mod" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/go.work" ]; then
+          echo "VERSION_FILE=$WORKING_DIR/go.work" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
           echo "VERSION_FILE=" >> $GITHUB_OUTPUT
@@ -149,11 +158,12 @@ runs:
       shell: bash
       env:
         JAVA_INPUT: ${{ inputs.java }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$JAVA_INPUT" ]; then
           JAVA_VER="$JAVA_INPUT"
-        elif [ -f .sdkmanrc ]; then
-          JAVA_LINE=$(grep '^java=' .sdkmanrc | head -n1 | tr -d '[:space:]')
+        elif [ -f "$WORKING_DIR/.sdkmanrc" ]; then
+          JAVA_LINE=$(grep '^java=' "$WORKING_DIR/.sdkmanrc" | head -n1 | tr -d '[:space:]')
           if [[ "$JAVA_LINE" =~ ^java=.+$ ]]; then
             JAVA_VER="${JAVA_LINE#java=}"
           fi
@@ -217,11 +227,12 @@ runs:
       shell: bash
       env:
         TERRAFORM_INPUT: ${{ inputs.terraform }}
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -n "$TERRAFORM_INPUT" ]; then
           echo "VERSION=$TERRAFORM_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f .terraform-version ]; then
-          echo "VERSION=$(cat .terraform-version)" >> $GITHUB_OUTPUT
+        elif [ -f "$WORKING_DIR/.terraform-version" ]; then
+          echo "VERSION=$(cat "$WORKING_DIR/.terraform-version")" >> $GITHUB_OUTPUT
         else
           echo "VERSION=" >> $GITHUB_OUTPUT
         fi
