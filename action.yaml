@@ -10,6 +10,12 @@ inputs:
   node:
     description: "Node.js version (e.g. 18)"
     required: false
+  npm:
+    description: "NPM version (e.g. 11.7.0)"
+    required: false
+  pnpm:
+    description: "PNPM version (e.g. 9.9.0)"
+    required: false
   yarn:
     description: "Yarn version (e.g. 1.22.22)"
     required: false
@@ -81,36 +87,63 @@ runs:
       with:
         node-version: ${{ steps.detect-node.outputs.VERSION }}
 
-    # Detects if yarn is being used as package manager
-    # This step enables conditional execution of the setup action,
-    # either when a version is explicitly provided or when a `yarn.lock` file exists.
-    # Right now, we only support installing yarn v1.x if the version is not explicitly provided.
-    - id: detect-yarn
+    # Detect which package manager to use based on lock files or explicit inputs.
+    # Priority order: inputs > package.json#packageManager > lock files > default yarn v1
+    - id: detect-package-manager
       shell: bash
       env:
+        NPM_INPUT: ${{ inputs.npm }}
+        PNPM_INPUT: ${{ inputs.pnpm }}
         YARN_INPUT: ${{ inputs.yarn }}
         WORKING_DIR: ${{ inputs.working-directory }}
       run: |
-        if [ -n "$YARN_INPUT" ]; then
-          echo "VERSION=$YARN_INPUT" >> $GITHUB_OUTPUT
-        elif [ -f "$WORKING_DIR/yarn.lock" ]; then
-          echo "LOCK_FILE=$WORKING_DIR/yarn.lock" >> $GITHUB_OUTPUT
-        else
-          echo "VERSION=" >> $GITHUB_OUTPUT
-          echo "LOCK_FILE=" >> $GITHUB_OUTPUT
+        PM=""
+        VERSION=""
+
+        # 1. Explicit inputs
+        if [ -n "$NPM_INPUT" ]; then
+          PM=npm; VERSION=$NPM_INPUT
+        elif [ -n "$PNPM_INPUT" ]; then
+          PM=pnpm; VERSION=$PNPM_INPUT
+        elif [ -n "$YARN_INPUT" ]; then
+          PM=yarn; VERSION=$YARN_INPUT
         fi
 
-    - name: Setup Yarn
+        # 2. package.json#packageManager field (e.g. "pnpm@9.9.0" or "pnpm@9.9.0+sha256.abc")
+        if [ -z "$PM" ] && [ -f "$WORKING_DIR/package.json" ]; then
+          FIELD=$(grep -o '"packageManager"[[:space:]]*:[[:space:]]*"[^"]*"' "$WORKING_DIR/package.json" \
+            | grep -o '"[^"]*"$' | tr -d '"')
+          if [ -n "$FIELD" ]; then
+            DETECTED_PM=$(echo "$FIELD" | cut -d'@' -f1)
+            case "$DETECTED_PM" in
+              npm|pnpm|yarn)
+                PM=$DETECTED_PM
+                VERSION=$(echo "$FIELD" | cut -d'@' -f2- | cut -d'+' -f1)
+                ;;
+            esac
+          fi
+        fi
+
+        # 3. Lock files
+        if [ -z "$PM" ]; then
+          if [ -f "$WORKING_DIR/package-lock.json" ]; then PM=npm
+          elif [ -f "$WORKING_DIR/pnpm-lock.yaml" ]; then PM=pnpm
+          elif [ -f "$WORKING_DIR/yarn.lock" ]; then PM=yarn
+          else PM=yarn  # default
+          fi
+        fi
+
+        echo "PACKAGE_MANAGER=$PM" >> $GITHUB_OUTPUT
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Setup Package Manager
       shell: bash
       env:
-        YARN_VERSION: ${{ steps.detect-yarn.outputs.VERSION }}
-        YARN_LOCK_FILE: ${{ steps.detect-yarn.outputs.LOCK_FILE }}
+        PACKAGE_MANAGER:
+          ${{ steps.detect-package-manager.outputs.PACKAGE_MANAGER }}
+        VERSION: ${{ steps.detect-package-manager.outputs.VERSION }}
       run: |
-        if [ -n "$YARN_VERSION" ]; then
-          npm install -g yarn@$YARN_VERSION
-        elif [ -n "$YARN_LOCK_FILE" ]; then
-          npm install -g yarn
-        fi
+        npm install -g "${PACKAGE_MANAGER}${VERSION:+@${VERSION}}"
 
     # Detect version for Go from input or common version files.
     # This step enables conditional execution of the setup action,
