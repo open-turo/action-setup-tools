@@ -36,6 +36,11 @@ inputs:
     required: false
     default: "."
 
+outputs:
+  package-manager:
+    description: "The detected package manager (npm, pnpm, or yarn)"
+    value: ${{ steps.detect-package-manager.outputs.PACKAGE_MANAGER }}
+
 runs:
   using: composite
   steps:

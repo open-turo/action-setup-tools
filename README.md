@@ -60,7 +60,18 @@ jobs:
 
 <!-- prettier-ignore-start -->
 <!-- action-docs-inputs -->
+## Inputs
 
+| parameter | description | required | default |
+| --- | --- | --- | --- |
+| `python` | Python version (e.g. 3.11) | `false` | |
+| `node` | Node.js version (e.g. 18) | `false` | |
+| `npm` | NPM version (e.g. 11.7.0) | `false` | |
+| `pnpm` | PNPM version (e.g. 9.9.0) | `false` | |
+| `yarn` | Yarn version (e.g. 1.22.22) | `false` | |
+| `go` | Go version (e.g. 1.22) | `false` | |
+| `java` | Java version with distribution (e.g. 8.0.442-tem) | `false` | |
+| `terraform` | Terraform version (e.g. 1.6.6) | `false` | |
 <!-- action-docs-inputs -->
 
 <!-- action-docs-outputs -->
@@ -68,11 +79,12 @@ jobs:
 
 | parameter | description |
 | --- | --- |
-| go | The version of golang that has been installed and is ready for use. |
-| node | The verison of Node.js that has been installed and is ready for use. |
-| java | The version of Java that has been installed and is ready for use. |
-| python | The version of Python that has been installed and is ready for use. |
-| terraform | The version of Terraform that has been installed and is ready for use. |
+| `package-manager` | The detected package manager (`npm`, `pnpm`, or `yarn`). |
+| `go` | The version of Go that has been installed and is ready for use. |
+| `node` | The version of Node.js that has been installed and is ready for use. |
+| `java` | The version of Java that has been installed and is ready for use. |
+| `python` | The version of Python that has been installed and is ready for use. |
+| `terraform` | The version of Terraform that has been installed and is ready for use. |
 <!-- action-docs-outputs -->
 
 <!-- action-docs-runs -->
