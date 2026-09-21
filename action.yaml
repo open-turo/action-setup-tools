@@ -134,7 +134,6 @@ runs:
           if [ -f "$WORKING_DIR/package-lock.json" ]; then PM=npm
           elif [ -f "$WORKING_DIR/pnpm-lock.yaml" ]; then PM=pnpm
           elif [ -f "$WORKING_DIR/yarn.lock" ]; then PM=yarn
-          else PM=yarn  # default
           fi
         fi
 
@@ -142,6 +141,7 @@ runs:
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Setup Package Manager
+      if: steps.detect-package-manager.outputs.PACKAGE_MANAGER != ''
       shell: bash
       env:
         PACKAGE_MANAGER:
