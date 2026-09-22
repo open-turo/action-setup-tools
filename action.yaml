@@ -150,7 +150,13 @@ runs:
           ${{ steps.detect-package-manager.outputs.PACKAGE_MANAGER }}
         VERSION: ${{ steps.detect-package-manager.outputs.VERSION }}
       run: |
-        npm install -g "${PACKAGE_MANAGER}${VERSION:+@${VERSION}}"
+        MAJOR="${VERSION%%.*}"
+        if [ "$PACKAGE_MANAGER" = "yarn" ] && [ -n "$VERSION" ] && [ "$MAJOR" -ge 2 ] 2>/dev/null; then
+          corepack enable
+          corepack prepare "yarn@${VERSION}" --activate
+        else
+          npm install -g "${PACKAGE_MANAGER}${VERSION:+@${VERSION}}"
+        fi
 
     # Detect version for Go from input or common version files.
     # This step enables conditional execution of the setup action,
