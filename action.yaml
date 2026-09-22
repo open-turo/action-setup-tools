@@ -117,7 +117,7 @@ runs:
         # 2. package.json#packageManager field (e.g. "pnpm@9.9.0" or "pnpm@9.9.0+sha256.abc")
         if [ -z "$PM" ] && [ -f "$WORKING_DIR/package.json" ]; then
           FIELD=$(grep -o '"packageManager"[[:space:]]*:[[:space:]]*"[^"]*"' "$WORKING_DIR/package.json" \
-            | grep -o '"[^"]*"$' | tr -d '"')
+            | grep -o '"[^"]*"$' | tr -d '"' || true)
           if [ -n "$FIELD" ]; then
             DETECTED_PM=$(echo "$FIELD" | cut -d'@' -f1)
             case "$DETECTED_PM" in
