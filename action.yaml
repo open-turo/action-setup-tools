@@ -114,7 +114,7 @@ runs:
           PM=yarn; VERSION=$YARN_INPUT
         fi
 
-        # 2. package.json#packageManager field (e.g. "pnpm@9.9.0" or "pnpm@9.9.0+sha256.abc")
+        # 2. package.json#packageManager field (e.g. "pnpm@10.34.5" or "pnpm@10.34.5")
         if [ -z "$PM" ] && [ -f "$WORKING_DIR/package.json" ]; then
           FIELD=$(grep -o '"packageManager"[[:space:]]*:[[:space:]]*"[^"]*"' "$WORKING_DIR/package.json" \
             | grep -o '"[^"]*"$' | tr -d '"')
