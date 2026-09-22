@@ -141,7 +141,9 @@ runs:
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Setup Package Manager
-      if: steps.detect-package-manager.outputs.PACKAGE_MANAGER != ''
+      if: |
+        steps.detect-package-manager.outputs.PACKAGE_MANAGER == 'yarn' ||
+        steps.detect-package-manager.outputs.PACKAGE_MANAGER == 'pnpm'
       shell: bash
       env:
         PACKAGE_MANAGER:
