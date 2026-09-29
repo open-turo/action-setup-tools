@@ -9,7 +9,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: open-turo/actions-gha/lint@v2
+      - uses: open-turo/actions-gha/lint@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           node-version: 24
@@ -18,7 +18,7 @@ jobs:
     name: Test / Fast
     runs-on: ubuntu-latest
     steps:
-      - uses: open-turo/actions-gha/test@v2
+      - uses: open-turo/actions-gha/test@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
@@ -31,7 +31,7 @@ jobs:
     needs: [lint, fast]
     runs-on: ubuntu-latest
     steps:
-      - uses: open-turo/actions-gha/test@v2
+      - uses: open-turo/actions-gha/test@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
